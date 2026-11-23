@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-    <!-- Source directory -->
+    <!-- Source directory (matches <sourceDirectory>src</sourceDirectory> in pom.xml) -->
     <classpathentry kind="src" path="src"/>
 
     <!-- JDK / runtime (Eclipse resolves this to the default JRE) -->
     <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+
+    <!-- ANTLR 4 runtime: org.antlr.v4.runtime.* used by the generated parser.
+         Version must stay in sync with the antlr4-runtime dependency in pom.xml.
+         antlr4-runtime has no transitive dependencies, so this single jar is enough. -->
+    <classpathentry kind="lib" path="/home/iikka/.m2/repository/org/antlr/antlr4-runtime/4.13.2/antlr4-runtime-4.13.2.jar"/>
 
     <!-- Output directory -->
     <classpathentry kind="output" path="bin"/>

@@ -3,12 +3,18 @@ package org.kaivos.gentzen;
 import java.util.Optional;
 
 public class Rule {
+    private String name;
     private RuleSignature signature;
     private Optional<Expression> body;
 
-    public Rule(RuleSignature signature) {
+    public Rule(String name, RuleSignature signature) {
+        this.name = name;
         this.signature = signature;
         this.body = Optional.empty();
+    }
+
+    public String getName() {
+        return name;
     }
 
     public RuleSignature getSignature() {

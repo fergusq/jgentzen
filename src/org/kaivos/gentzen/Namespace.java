@@ -1,47 +1,52 @@
 package org.kaivos.gentzen;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
+
+import static java.util.stream.Collectors.toMap;
 
 public class Namespace {
-    private Optional<Namespace> parent;
-    private Map<String, RuleSignature> definedRules;
-    private Map<String, ExpressionType> boundVariables;
+    private HashMap<String, Rule> definedRules;
 
-    public Namespace(Map<String, RuleSignature> definedRules, Map<String, ExpressionType> boundVariables) {
-        this.parent = Optional.empty();
-        this.definedRules = definedRules;
-        this.boundVariables = boundVariables;
+    public Namespace() {
+        definedRules = new HashMap<>();
     }
 
-    public Namespace(Namespace parent, Map<String, RuleSignature> definedRules, Map<String, ExpressionType> boundVariables) {
-        this.parent = Optional.of(parent);
-        this.definedRules = definedRules;
-        this.boundVariables = boundVariables;
+    public void addRuleDecl(Rule rule) throws DuplicateException {
+        if (definedRules.containsKey(rule.getName())) {
+            throw new DuplicateException("duplicate declaration of " + rule.getName());
+        }
+        definedRules.put(rule.getName(), rule);
     }
 
-    public Optional<RuleSignature> resolveRule(String name) {
-        if (definedRules.containsKey(name)) {
-            return Optional.of(definedRules.get(name).withInstance(nextCounter()));
-        } else {
-            return parent.flatMap(p -> p.resolveRule(name));
+    public void addRuleDef(String name, Expression body) throws MissingException, DuplicateException, Expression.TypeCheckException {
+        if (!definedRules.containsKey(name)) {
+            throw new MissingException("definition of undeclared rule " + name);
+        }
+        var rule = definedRules.get(name);
+        if (rule.getBody().isPresent()) {
+            throw new DuplicateException("duplicate definition of " + name);
+        }
+        rule.setBody(body);
+        body.typeCheck(toScope(), rule.getSignature());
+    }
+
+    Scope toScope() {
+        return new Scope(
+            definedRules.entrySet().stream().collect(toMap(Map.Entry::getKey, e -> e.getValue().getSignature())),
+            Map.of()
+        );
+    }
+
+    public static class MissingException extends CompilationException {
+        public MissingException(String message) {
+            super(message);
         }
     }
 
-    public Optional<ExpressionType> resolveVariable(String name) {
-        if (boundVariables.containsKey(name)) {
-            return Optional.of(boundVariables.get(name).withInstance(nextCounter()));
-        } else {
-            return parent.flatMap(p -> p.resolveVariable(name));
+    public static class DuplicateException extends CompilationException {
+        public DuplicateException(String message) {
+            super(message);
         }
-    }
-
-    private static int COUNTER = 0;
-
-    public static int nextCounter() {
-        if (COUNTER < 0) {
-            throw new RuntimeException("Counter overflow");
-        }
-        return COUNTER++;
     }
 }
