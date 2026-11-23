@@ -1,4 +1,4 @@
-<- "stdlib";
+<- "lib/stdlib";
 inbyte : () / ($1(iosys) |- $2(|\|));
 outbyte : () / ($1(iosys), $2(|\|) |- $3(++));
 outtext : () / ($1(iosys), $2(.. |\|) |- $3(++));

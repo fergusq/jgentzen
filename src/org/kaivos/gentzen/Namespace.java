@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import org.kaivos.gentzen.parser.GentzenLexer;
 import org.kaivos.gentzen.parser.GentzenParser;
 
@@ -19,6 +20,7 @@ public class Namespace {
 
     public Namespace() {
         definedRules = new HashMap<>();
+        importedFiles = new ArrayList<>();
     }
 
     public void addRuleDecl(Rule rule) throws DuplicateException {
@@ -46,14 +48,16 @@ public class Namespace {
         }
         importedFiles.add(file);
         try {
-            GentzenLexer lexer = new GentzenLexer(new ANTLRFileStream("lib/" + file + ".gentzen"));
+            GentzenLexer lexer = new GentzenLexer(new ANTLRFileStream(file + ".gentzen"));
             GentzenParser parser = new GentzenParser(new CommonTokenStream(lexer));
             var decldefs = parser.gentzenFile().decldefs;
             for (var decldef : decldefs) {
                 try {
                     decldef.register(this);
                 } catch (CompilationException ex) {
-                    System.err.println(ex.getMessage());
+                    System.err.println(ex.getStart().toString() + ": " + ex.getMessage() + (ex.getCause() != null ? ": " + ex.getCause().getMessage() : ""));
+                } catch (DeclarationException ex) {
+                    System.err.println(decldef.getStart().toString() + ": " + ex.getMessage());
                 }
             }
         } catch (Exception ex) {
@@ -87,13 +91,19 @@ public class Namespace {
         return lines;
     }
 
-    public static class MissingException extends CompilationException {
+    public static class DeclarationException extends Exception {
+        public DeclarationException(String message) {
+            super(message);
+        }
+    }
+
+    public static class MissingException extends DeclarationException {
         public MissingException(String message) {
             super(message);
         }
     }
 
-    public static class DuplicateException extends CompilationException {
+    public static class DuplicateException extends DeclarationException {
         public DuplicateException(String message) {
             super(message);
         }

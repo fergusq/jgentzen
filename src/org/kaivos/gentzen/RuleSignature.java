@@ -180,7 +180,7 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
             // (*a, A ⊢ *b) / (*a ⊢ ¬A, *b)  (¬R)
             // This is intuitive, because output params are implemented as continuations:
             // ¬L: Input param that is a continuation is just the same as an output param
-            // ¬R: A becomes Count<Cont<A>> and the whole expression is wrapped in call/cc
+            // ¬R: A becomes Count<Cont<A>> and the whole expression is wrapped in a lambda
 
             // ¬L this / other
             for (var i : thisOutputNumberedParams.keySet()) {
@@ -188,7 +188,7 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                     && otherInputNumberedParams.containsKey(i)
                     && otherInputNumberedParams.get(i) instanceof ExpressionType.Not) {
                     var type = thisOutputNumberedParams.remove(i);
-                    thisInputNumberedParams.put(i, type);
+                    thisInputNumberedParams.put(i, new ExpressionType.Not(type));
                 }
             }
 
@@ -198,7 +198,7 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                     && thisInputNumberedParams.containsKey(i)
                     && thisInputNumberedParams.get(i) instanceof ExpressionType.Not) {
                     var type = otherOutputNumberedParams.remove(i);
-                    otherInputNumberedParams.put(i, type);
+                    otherInputNumberedParams.put(i, new ExpressionType.Not(type));
                 }
             }
 
@@ -208,7 +208,7 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                     && otherOutputNumberedParams.containsKey(i)
                     && otherOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
                     var type = thisInputNumberedParams.remove(i);
-                    thisOutputNumberedParams.put(i, type);
+                    thisOutputNumberedParams.put(i, new ExpressionType.Not(type));
                 }
             }
 
@@ -218,7 +218,7 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                     && thisOutputNumberedParams.containsKey(i)
                     && thisOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
                     var type = otherInputNumberedParams.remove(i);
-                    otherOutputNumberedParams.put(i, type);
+                    otherOutputNumberedParams.put(i, new ExpressionType.Not(type));
                 }
             }
 

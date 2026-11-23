@@ -10,6 +10,7 @@ import org.kaivos.gentzen.Expression;
 import org.kaivos.gentzen.ExpressionType;
 import org.kaivos.gentzen.Rule;
 import org.kaivos.gentzen.RuleSignature;
+import org.kaivos.gentzen.Utils;
 
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 

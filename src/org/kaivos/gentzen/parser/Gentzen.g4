@@ -11,34 +11,36 @@ import org.kaivos.gentzen.Expression;
 import org.kaivos.gentzen.ExpressionType;
 import org.kaivos.gentzen.Rule;
 import org.kaivos.gentzen.RuleSignature;
+import org.kaivos.gentzen.Utils;
 }
 
 gentzenFile returns [ArrayList<DeclDef> decldefs] :
     {$decldefs = new ArrayList<>();}
+    (importDecl {$decldefs.add($importDecl.d);})*
     (
     ruleDecl {$decldefs.add($ruleDecl.r);}
     | ruleDef {$decldefs.add($ruleDef.rd);}
-    | importDecl {$decldefs.add($exportDecl.d);}
-    | exportDecl {$decldefs.add($exportDecl.d);}
+    | typeclass {$decldefs.add($typeclass.tc);}
     )*
+    (exportDecl {$decldefs.add($exportDecl.d);})*
     ;
 
 importDecl returns [DeclDef.ImportDecl d] :
     '<-' STRING ';'
-    {$d = new DeclDef.ImportDecl($STRING.text);};
+    {$d = new DeclDef.ImportDecl(Utils.parseString($STRING.text), $start, $stop);};
 
 exportDecl returns [DeclDef.ExportDecl d] :
     {ArrayList<String> names = new ArrayList<>();}
-    '->' (IDENT {names.add($IDENT.text;)})* ';'
-    {$d = new DeclDef.ExportDecl(names);};
+    '->' (IDENT {names.add($IDENT.text);})* ';'
+    {$d = new DeclDef.ExportDecl(names, $start, $stop);};
 
 ruleDecl returns [DeclDef.RuleDeclaration r] :
     IDENT ':' ruleSignature ';'
-    {$r = new DeclDef.RuleDeclaration($IDENT.text, $ruleSignature.rs);};
+    {$r = new DeclDef.RuleDeclaration($IDENT.text, $ruleSignature.rs, $start, $stop);};
 
 ruleDef returns [DeclDef.RuleDefinition rd] :
     IDENT '=' expression ';'
-    {$rd = new DeclDef.RuleDefinition($IDENT.text, $expression.expr);};
+    {$rd = new DeclDef.RuleDefinition($IDENT.text, $expression.expr, $start, $stop);};
 
 ruleSignature returns [RuleSignature rs] :
     {ArrayList<RuleSignature.Sequent> aboves = new ArrayList<>();}
@@ -112,6 +114,9 @@ application returns [Expression app] :
     (expressionArg {args.add($expressionArg.expr);})*
     (arule {args.add($arule.ar);})?
     {$app = new Expression.Application(ruleName, args, $start, $stop);};
+
+typeclass resturns [Decldef.Typeclass tc] :
+    '{' IDENT ';' '}' ;
 
 IDENT : [a-zA-Z_][a-zA-Z0-9_\-/]* ;
 NUM : [0-9]+ ;

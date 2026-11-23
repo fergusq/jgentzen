@@ -1,5 +1,5 @@
-<- "stdlib";
-<- "iolib";
+<- "lib/stdlib";
+<- "lib/iolib";
 
 helloworld : () / ($1(iosys) |- $2(++));
 helloworld = [x,y] cut "Hello world!" [z] outtext x z y;
@@ -15,5 +15,12 @@ twice = [r / i,p] split/and p ([o] r i o) ([o] r i o);
 
 main : () / ($1(iosys) |- $2(++));
 main = [i,o] cut ([p] twice i p helloworld) [x] left/and x [z] init z o;
+
+lem : () / (|- $1(?x), $2(~ ?x));
+lem = [out, k] init k out;
+
+dne : () / ($1(~ ~ ?x) |- $2(?x));
+dne = [kk, out] cut ([k] init k out) ([k] init k kk);
+
 
 -> main;

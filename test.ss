@@ -1,5 +1,8 @@
-(include "stdlib.ss")
-(include "iolib.ss")
+(include "lib/stdlib.ss")
+(include "lib/iolib.ss")
+;(import test)
+;(import lib/stdlib)
+;(import lib/iolib)
 
 ; helloworld : () / ($1(iosys) |- $2(++))
 ; helloworld = [x,y] cut "Hello world!" ([z] outtext x z y)
