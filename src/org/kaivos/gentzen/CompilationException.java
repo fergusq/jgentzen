@@ -4,7 +4,10 @@ public class CompilationException extends Exception {
     public CompilationException(String message) {
         super(message);
     }
-    public CompilationException(Exception cause) {
+    public CompilationException(Throwable cause) {
         super(cause);
+    }
+    public CompilationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

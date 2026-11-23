@@ -4,15 +4,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toMap;
 
 import org.antlr.v4.runtime.Token;
 
 import org.kaivos.gentzen.ExpressionType.UnificationException;
 import org.kaivos.gentzen.RuleSignature.RuleSignatureUnificationException;
 import org.kaivos.gentzen.RuleSignature.SequentUnificationException;
+import org.kaivos.gentzen.RuleSignature.SequentUnificationResult;
 
 public sealed interface Expression {
     public String toGentzen();
@@ -23,13 +26,15 @@ public sealed interface Expression {
     default String toGentzenParensWithType() {
         return "(" + toGentzenWithType() + ")";
     }
-    public Type typeCheck(Scope scope, Type expectedType) throws TypeCheckException;
+    public String toScheme();
+    public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException;
+    public record TypeCheckResult(Type type, SequentUnificationResult unification) {}
     public class TypeCheckException extends CompilationException {
         public TypeCheckException(String message) {
             super(message);
         }
-        public TypeCheckException(Exception cause) {
-            super(cause);
+        public TypeCheckException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
     public final class AnonymousRule implements Expression {
@@ -68,7 +73,13 @@ public sealed interface Expression {
         }
 
         @Override
-        public Type typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
+        public String toScheme() {
+            String p = Stream.concat(params.stream(), above.stream().map(a -> "g/" + a)).collect(joining(" "));
+            return "(lambda (" + p + ") " + body.toScheme() + ")";
+        }
+
+        @Override
+        public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
             if (expectedType instanceof RuleSignature rs) {
                 if (above.size() != rs.above().size()) {
                     throw new TypeCheckException(getLocation() + " rule declaration and rule definition must have the same number of above sequents");
@@ -104,8 +115,11 @@ public sealed interface Expression {
                         }
                         numberedOutputParams.remove(i+1);
                     } else {
-                        throw new TypeCheckException(getLocation() + " rule declaration has no parameter $" + (i+1));
+                        throw new TypeCheckException(getLocation() + " rule declaration " + rs.toGentzen() + " has no parameter $" + (i+1));
                     }
+                }
+                if (numberedInputParams.size() > 0 || numberedOutputParams.size() > 0) {
+                    throw new TypeCheckException(getLocation() + " rule definition is missing " + (numberedInputParams.size() + numberedOutputParams.size()) + " parameters from " + rs.toGentzen());
                 }
                 var subScope = new Scope(scope, definedRules, boundVariables);
                 var subExpectedType = new RuleSignature(
@@ -116,37 +130,45 @@ public sealed interface Expression {
                     )
                 );
                 var bodyType = body.typeCheck(subScope, subExpectedType);
-                if (bodyType instanceof RuleSignature bodyRs) {
-                var newNumberedInputParams = new HashMap<>(bodyRs.below().input().numberedParams());
-                var newBoundInputParams = new HashMap<>(bodyRs.below().input().boundParams());
-                var newInputContextVars = bodyRs.below().input().contextVars();
-                var newNumberedOutputParams = new HashMap<>(bodyRs.below().output().numberedParams());
-                var newBoundOutputParams = new HashMap<>(bodyRs.below().output().boundParams());
-                var newOutputContextVars = bodyRs.below().output().contextVars();
-                for (int i = 0; i < params.size(); i++) {
-                    if (newBoundInputParams.containsKey(params.get(i))) {
-                        newNumberedInputParams.put(i+1, newBoundInputParams.get(params.get(i)));
-                        newBoundInputParams.remove(params.get(i));
-                    } else if (newBoundOutputParams.containsKey(params.get(i))) {
-                        newNumberedOutputParams.put(i+1, newBoundOutputParams.get(params.get(i)));
-                        newBoundOutputParams.remove(params.get(i));
-                    } else if (ignoredInputParams.containsKey(params.get(i))) {
-                        newNumberedInputParams.put(i+1, ignoredInputParams.get(params.get(i)));
-                    } else if (ignoredOutputParams.containsKey(params.get(i))) {
-                        newNumberedOutputParams.put(i+1, ignoredOutputParams.get(params.get(i)));
+                if (bodyType.type instanceof RuleSignature bodyRs) {
+                    var newNumberedInputParams = new HashMap<>(bodyRs.below().input().numberedParams());
+                    var newBoundInputParams = new HashMap<>(bodyRs.below().input().boundParams());
+                    var newInputContextVars = bodyRs.below().input().contextVars();
+                    var newNumberedOutputParams = new HashMap<>(bodyRs.below().output().numberedParams());
+                    var newBoundOutputParams = new HashMap<>(bodyRs.below().output().boundParams());
+                    var newOutputContextVars = bodyRs.below().output().contextVars();
+                    for (int i = 0; i < params.size(); i++) {
+                        if (newBoundInputParams.containsKey(params.get(i))) {
+                            newNumberedInputParams.put(i+1, newBoundInputParams.get(params.get(i)));
+                            newBoundInputParams.remove(params.get(i));
+                        } else if (newBoundOutputParams.containsKey(params.get(i))) {
+                            newNumberedOutputParams.put(i+1, newBoundOutputParams.get(params.get(i)));
+                            newBoundOutputParams.remove(params.get(i));
+                        } else if (ignoredInputParams.containsKey(params.get(i))) {
+                            newNumberedInputParams.put(i+1, ignoredInputParams.get(params.get(i)));
+                        } else if (ignoredOutputParams.containsKey(params.get(i))) {
+                            newNumberedOutputParams.put(i+1, ignoredOutputParams.get(params.get(i)));
+                        }
                     }
-                }
-                var newType = new RuleSignature(
-                    rs.above(),
-                    new RuleSignature.Sequent(
-                        new RuleSignature.SequentParameters(newNumberedInputParams, newBoundInputParams, newInputContextVars),
-                        new RuleSignature.SequentParameters(newNumberedOutputParams, newBoundOutputParams, newOutputContextVars)
-                    )
-                );
-                this.type = Optional.of(newType);
-                return newType;
+                    var newType = new RuleSignature(
+                        rs.above(),
+                        new RuleSignature.Sequent(
+                            new RuleSignature.SequentParameters(newNumberedInputParams, newBoundInputParams, newInputContextVars),
+                            new RuleSignature.SequentParameters(newNumberedOutputParams, newBoundOutputParams, newOutputContextVars)
+                        )
+                    );
+                    System.err.println(this.toGentzen());
+                    System.err.println(" got: " + newType.toGentzen());
+                    System.err.println(" expected: " + expectedType.toGentzen());
+                    try {
+                        var unification = newType.unify((RuleSignature) expectedType);
+                        this.type = Optional.of(newType);
+                        return new TypeCheckResult(newType, unification.mergeWith(bodyType.unification()));
+                    } catch (UnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
+                        throw new TypeCheckException(getLocation() + " type error", e);
+                    }
                 } else {
-                    throw new TypeCheckException(getLocation() + " expected " + expectedType.toGentzen() + ", got " + bodyType.toGentzen());
+                    throw new TypeCheckException(getLocation() + " expected " + expectedType.toGentzen() + ", got " + bodyType.type.toGentzen());
                 }
             } else {
                 throw new TypeCheckException(getLocation() + " expected " + expectedType.toGentzen() + ", got rule definition");
@@ -154,7 +176,7 @@ public sealed interface Expression {
         }
 
         private String getLocation() {
-            return "[" + start.getLine() + ":" + start.getCharPositionInLine() + "]";
+            return "[" + start.getLine() + ":" + (start.getCharPositionInLine()+1) + "]";
         }
     }
     public final class Application implements Expression {
@@ -183,13 +205,50 @@ public sealed interface Expression {
         }
 
         @Override
-        public Type typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
+        public String toScheme() {
+            String code = Stream.concat(Stream.of("g/"+rule), args.stream().map(Expression::toScheme)).collect(joining(" "));
+            return "(" + code + ")";
+        }
+
+        @Override
+        public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
             if (!(expectedType instanceof RuleSignature)) {
                 throw new TypeCheckException(getLocation() + " expected " + expectedType.toGentzen() + ", got rule " + rule);
             }
-            Optional<RuleSignature> resolved = scope.resolveRule(rule);
-            if (resolved.isEmpty()) {
-                throw new TypeCheckException(getLocation() + " cannot resolve symbol " + rule + " as a rule");
+            Optional<RuleSignature> resolved;
+            if (rule.equals("neces")) {
+                // neces is defined for any number of parameters, so we construct its type here dynamically
+                resolved = Optional.of(new RuleSignature(
+                    List.of(new RuleSignature.Sequent(
+                        new RuleSignature.SequentParameters(
+                            IntStream.range(1, args.size()-1).mapToObj(Integer::valueOf).collect(toMap(i -> i, i -> new ExpressionType.TypeVar("neces_in_"+i, 0))),
+                            Map.of(),
+                            List.of()
+                        ),
+                        new RuleSignature.SequentParameters(
+                            Map.of(args.size(), new ExpressionType.TypeVar("neces_out", 0)),
+                            Map.of(),
+                            List.of()
+                        )
+                    )),
+                    new RuleSignature.Sequent(
+                        new RuleSignature.SequentParameters(
+                            IntStream.range(1, args.size()-1).mapToObj(Integer::valueOf).collect(toMap(i -> i, i -> new ExpressionType.Box(new ExpressionType.TypeVar("neces_in_"+i, 0)))),
+                            Map.of(),
+                            List.of()
+                        ),
+                        new RuleSignature.SequentParameters(
+                            Map.of(args.size(), new ExpressionType.Box(new ExpressionType.TypeVar("neces_out", 0))),
+                            Map.of(),
+                            List.of()
+                        )
+                    )
+                ).withInstance(Scope.nextCounter()));
+            } else {
+                resolved = scope.resolveRule(rule);
+                if (resolved.isEmpty()) {
+                    throw new TypeCheckException(getLocation() + " cannot resolve symbol " + rule + " as a rule");
+                }
             }
             RuleSignature resolvedRule = resolved.get();
             var numberedInputParams = resolvedRule.below().input().numberedParams();
@@ -201,6 +260,7 @@ public sealed interface Expression {
             }
             var newBoundInputParams = new HashMap<>(resolvedRule.below().input().boundParams());
             var newBoundOutputParams = new HashMap<>(resolvedRule.below().output().boundParams());
+            var unification = new RuleSignature.SequentUnificationResult(Map.of(), Map.of());
             for (int i = 0; i < numParams; i++) {
                 if (numberedInputParams.containsKey(i+1) && numberedOutputParams.containsKey(i+1)) {
                     throw new TypeCheckException(getLocation() + " parameter $" + (i+1) + " appears on both the left and the right side of the sequent " + resolvedRule.below().toGentzen());
@@ -208,15 +268,25 @@ public sealed interface Expression {
                     throw new TypeCheckException(getLocation() + " parameter $" + (i+1) + " is missing from the sequent " + resolvedRule.below().toGentzen());
                 } else if (numberedInputParams.containsKey(i+1)) {
                     if (args.get(i) instanceof Symbol s) {
-                        Type t = args.get(i).typeCheck(scope, numberedInputParams.get(i+1));
-                        newBoundInputParams.put(s.symbol(), (ExpressionType) t);
+                        TypeCheckResult tcr = args.get(i).typeCheck(scope, numberedInputParams.get(i+1));
+                        newBoundInputParams.put(s.symbol(), (ExpressionType) tcr.type);
+                        try {
+                            unification = unification.mergeWith(tcr.unification());
+                        } catch (UnificationException e) {
+                            throw new TypeCheckException(getLocation() + " type error", e);
+                        }
                     } else {
                         throw new TypeCheckException(getLocation() + " parameter $" + (i+1) + ": expected a variable, got " + args.get(i).toGentzen());
                     }
                 } else if (numberedOutputParams.containsKey(i+1)) {
                     if (args.get(i) instanceof Symbol s) {
-                        Type t = args.get(i).typeCheck(scope, numberedOutputParams.get(i+1));
-                        newBoundOutputParams.put(s.symbol(), (ExpressionType) t);
+                        TypeCheckResult tcr = args.get(i).typeCheck(scope, numberedOutputParams.get(i+1));
+                        newBoundOutputParams.put(s.symbol(), (ExpressionType) tcr.type);
+                        try {
+                            unification = unification.mergeWith(tcr.unification());
+                        } catch (UnificationException e) {
+                            throw new TypeCheckException(getLocation() + " type error", e);
+                        }
                     } else {
                         throw new TypeCheckException(getLocation() + " parameter $" + (i+1) + ": expected a variable, got " + args.get(i).toGentzen());
                     }
@@ -224,15 +294,15 @@ public sealed interface Expression {
                     throw new RuntimeException(getLocation() + " dead code");
                 }
             }
-            RuleSignature.SequentUnificationResult unification = new RuleSignature.SequentUnificationResult(Map.of(), Map.of());
             for (int i = 0; i < numAbove; i++) {
                 var type = new RuleSignature(List.of(), resolvedRule.above().get(i));
                 var value = args.get(i + numParams);
-                var t = (RuleSignature) value.typeCheck(scope, type);
+                var tcr = value.typeCheck(scope, type);
                 try {
-                    unification = unification.mergeWith(t.unify(type));
+                    var rs = (RuleSignature) tcr.type;
+                    unification = unification.mergeWith(tcr.unification()).mergeWith(rs.unify(type));
                 } catch (UnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
-                    throw new TypeCheckException(e);
+                    throw new TypeCheckException(getLocation() + " type error", e);
                 }
             }
             var newType = new RuleSignature(
@@ -244,19 +314,19 @@ public sealed interface Expression {
             ).substitute(unification);
             try {
                 System.err.println(this.toGentzen());
-                System.err.println("got: " + newType.toGentzen());
-                System.err.println("expected: " + expectedType.toGentzen());
+                System.err.println(" got: " + newType.toGentzen());
+                System.err.println(" expected: " + expectedType.toGentzen());
                 var finalUnification = newType.unify((RuleSignature) expectedType);
                 newType = newType.substitute(finalUnification);
+                this.type = Optional.of(newType);
+                return new TypeCheckResult(newType, finalUnification);
             } catch (UnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
-                throw new TypeCheckException(e);
+                throw new TypeCheckException(getLocation() + " type error", e);
             }
-            this.type = Optional.of(newType);
-            return newType;
         }
 
         private String getLocation() {
-            return "[" + start.getLine() + ":" + start.getCharPositionInLine() + "]";
+            return "[" + start.getLine() + ":" + (start.getCharPositionInLine()+1) + "]";
         }
     }
     public final class Symbol implements Expression {
@@ -283,16 +353,21 @@ public sealed interface Expression {
 
         @Override
         public String toGentzenWithType() {
-            return symbol + " :: " + type.get().toGentzen();
+            return toGentzen() + " :: " + type.get().toGentzen();
         }
 
         @Override
         public String toGentzenParens() {
-            return symbol;
+            return toGentzen();
         }
 
         @Override
-        public Type typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
+        public String toScheme() {
+            return type.get() instanceof RuleSignature ? "g/" + symbol : symbol;
+        }
+
+        @Override
+        public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
             if (expectedType instanceof RuleSignature rs) {
                 Optional<RuleSignature> resolved = scope.resolveRule(symbol);
                 if (resolved.isEmpty()) {
@@ -302,9 +377,9 @@ public sealed interface Expression {
                     var unification = rs.unify(resolved.get());
                     var newType = resolved.get().substitute(unification);
                     this.type = Optional.of(newType);
-                    return newType;
+                    return new TypeCheckResult(newType, unification);
                 } catch (UnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
-                    throw new TypeCheckException(e);
+                    throw new TypeCheckException(getLocation() + " type error", e);
                 }
             } else {
                 var et = (ExpressionType) expectedType;
@@ -313,18 +388,129 @@ public sealed interface Expression {
                     throw new TypeCheckException(getLocation() + " cannot resolve symbol " + symbol + " as a variable");
                 }
                 try {
+                    System.err.println(this.toGentzen());
+                    System.err.println(" got: " + resolved.get().toGentzen());
+                    System.err.println(" expected: " + expectedType.toGentzen());
                     var unification = et.unify(resolved.get());
                     var newType = resolved.get().substitute(unification);
                     this.type = Optional.of(newType);
-                    return newType;
+                    return new TypeCheckResult(newType, new RuleSignature.SequentUnificationResult(unification, Map.of()));
                 } catch (UnificationException e) {
-                    throw new TypeCheckException(e);
+                    throw new TypeCheckException(getLocation() + " type error", e);
                 }
             }
         }
 
         private String getLocation() {
-            return "[" + start.getLine() + ":" + start.getCharPositionInLine() + "]";
+            return "[" + start.getLine() + ":" + (start.getCharPositionInLine()+1) + "]";
+        }
+    }
+
+    public sealed abstract class Literal implements Expression permits StringLiteral, NaturalLiteral {
+        private RuleSignature type;
+        private Token start;
+        private Token stop;
+
+        protected Literal(RuleSignature type, Token start, Token stop) {
+            this.type = type;
+            this.start = start;
+            this.stop = stop;
+        }
+
+        public RuleSignature type() {
+            return type;
+        }
+
+        @Override
+        public String toGentzenWithType() {
+            return toGentzen() + " :: " + type.toGentzen();
+        }
+
+        @Override
+        public String toGentzenParens() {
+            return toGentzen();
+        }
+
+        @Override
+        public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
+            if (expectedType instanceof RuleSignature rs) {
+                try {
+                    var unification = rs.unify(type);
+                    return new TypeCheckResult(type, unification);
+                } catch (UnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
+                    throw new TypeCheckException(getLocation() + " type error", e);
+                }
+            } else {
+                throw new TypeCheckException(getLocation() + " literal " + toGentzen() + " can only be used in a rule position");
+            }
+        }
+
+        private String getLocation() {
+            return "[" + start.getLine() + ":" + (start.getCharPositionInLine()+1) + "]";
+        }
+    }
+
+    public final class StringLiteral extends Literal {
+        /** () / (|- $1(.. |\|)) */
+        public static final RuleSignature LITERAL_TYPE = new RuleSignature(
+            List.of(),
+            new RuleSignature.Sequent(
+                new RuleSignature.SequentParameters(Map.of(), Map.of(), List.of()),
+                new RuleSignature.SequentParameters(
+                    Map.of(1, new ExpressionType.List(new ExpressionType.Nat())),
+                    Map.of(),
+                    List.of()
+                )
+            )
+        );
+
+        private String literal;
+
+        public StringLiteral(String literal, Token start, Token stop) {
+            super(LITERAL_TYPE, start, stop);
+            this.literal = literal;
+        }
+
+        @Override
+        public String toGentzen() {
+            return literal;
+        }
+
+        @Override
+        public String toScheme() {
+            return "(lambda (output) (output (string->list " + literal + ")))";
+        }
+    }
+
+    public final class NaturalLiteral extends Literal {
+        /** () / (|- $1(|\|)) */
+        public static final RuleSignature LITERAL_TYPE = new RuleSignature(
+            List.of(),
+            new RuleSignature.Sequent(
+                new RuleSignature.SequentParameters(Map.of(), Map.of(), List.of()),
+                new RuleSignature.SequentParameters(
+                    Map.of(1, new ExpressionType.Nat()),
+                    Map.of(),
+                    List.of()
+                )
+            )
+        );
+
+        private int literal;
+
+        public NaturalLiteral(int literal, Token start, Token stop) {
+            super(LITERAL_TYPE, start, stop);
+            this.literal = literal;
+        }
+
+        @Override
+        public String toGentzen() {
+            return ""+literal;
+        }
+
+        @Override
+        public String toScheme() {
+            return "(lambda (output) (output " + literal + "))";
         }
     }
 }

@@ -170,8 +170,66 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
         }
 
         public SequentUnificationResult unify(Sequent other) throws SequentUnificationException, UnificationException {
-            var inputUnification = input.unify(other.input, this, other);
-            var outputUnification = output.unify(other.output, this, other);
+            // Implicit negation
+            var thisInputNumberedParams = new HashMap<>(input.numberedParams());
+            var thisOutputNumberedParams = new HashMap<>(output.numberedParams());
+            var otherInputNumberedParams = new HashMap<>(other.input().numberedParams());
+            var otherOutputNumberedParams = new HashMap<>(other.output().numberedParams());
+
+            // (*a ⊢ A, *b) / (*a, ¬A ⊢ *b)  (¬L)
+            // (*a, A ⊢ *b) / (*a ⊢ ¬A, *b)  (¬R)
+            // This is intuitive, because output params are implemented as continuations:
+            // ¬L: Input param that is a continuation is just the same as an output param
+            // ¬R: A becomes Count<Cont<A>> and the whole expression is wrapped in call/cc
+
+            // ¬L this / other
+            for (var i : thisOutputNumberedParams.keySet()) {
+                if (!otherOutputNumberedParams.containsKey(i)
+                    && otherInputNumberedParams.containsKey(i)
+                    && otherInputNumberedParams.get(i) instanceof ExpressionType.Not) {
+                    var type = thisOutputNumberedParams.remove(i);
+                    thisInputNumberedParams.put(i, type);
+                }
+            }
+
+            // ¬L other / this
+            for (var i : otherOutputNumberedParams.keySet()) {
+                if (!thisOutputNumberedParams.containsKey(i)
+                    && thisInputNumberedParams.containsKey(i)
+                    && thisInputNumberedParams.get(i) instanceof ExpressionType.Not) {
+                    var type = otherOutputNumberedParams.remove(i);
+                    otherInputNumberedParams.put(i, type);
+                }
+            }
+
+            // ¬R this / other
+            for (var i : thisInputNumberedParams.keySet()) {
+                if (!otherInputNumberedParams.containsKey(i)
+                    && otherOutputNumberedParams.containsKey(i)
+                    && otherOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
+                    var type = thisInputNumberedParams.remove(i);
+                    thisOutputNumberedParams.put(i, type);
+                }
+            }
+
+            // ¬R other / this
+            for (var i : otherInputNumberedParams.keySet()) {
+                if (!thisInputNumberedParams.containsKey(i)
+                    && thisOutputNumberedParams.containsKey(i)
+                    && thisOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
+                    var type = otherInputNumberedParams.remove(i);
+                    otherOutputNumberedParams.put(i, type);
+                }
+            }
+
+            var thisInput = new SequentParameters(thisInputNumberedParams, input.boundParams(), input.contextVars());
+            var thisOutput = new SequentParameters(thisOutputNumberedParams, output.boundParams(), output.contextVars());
+            var otherInput = new SequentParameters(otherInputNumberedParams, other.input().boundParams(), other.input().contextVars());
+            var otherOutput = new SequentParameters(otherOutputNumberedParams, other.output().boundParams(), other.output().contextVars());
+
+            // Normal unification
+            var inputUnification = thisInput.unify(otherInput, this, other);
+            var outputUnification = thisOutput.unify(otherOutput, this, other);
             return inputUnification.mergeWith(outputUnification);
         }
     }

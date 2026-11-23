@@ -15,8 +15,22 @@ import org.kaivos.gentzen.RuleSignature;
 
 gentzenFile returns [ArrayList<DeclDef> decldefs] :
     {$decldefs = new ArrayList<>();}
-    (ruleDecl {$decldefs.add($ruleDecl.r);} | ruleDef {$decldefs.add($ruleDef.rd);})*
+    (
+    ruleDecl {$decldefs.add($ruleDecl.r);}
+    | ruleDef {$decldefs.add($ruleDef.rd);}
+    | importDecl {$decldefs.add($exportDecl.d);}
+    | exportDecl {$decldefs.add($exportDecl.d);}
+    )*
     ;
+
+importDecl returns [DeclDef.ImportDecl d] :
+    '<-' STRING ';'
+    {$d = new DeclDef.ImportDecl($STRING.text);};
+
+exportDecl returns [DeclDef.ExportDecl d] :
+    {ArrayList<String> names = new ArrayList<>();}
+    '->' (IDENT {names.add($IDENT.text;)})* ';'
+    {$d = new DeclDef.ExportDecl(names);};
 
 ruleDecl returns [DeclDef.RuleDeclaration r] :
     IDENT ':' ruleSignature ';'
@@ -73,14 +87,13 @@ type returns [ExpressionType typ] :
     | name=IDENT {ArrayList<ExpressionType> typeArgs = new ArrayList<>();} (type {typeArgs.add($type.typ);})* {$typ = new ExpressionType.CustomType($name.text, typeArgs);};
 
 expression returns [Expression expr] :
-    arule {$expr = $arule.ar;}
+    expressionArg {$expr = $expressionArg.expr;}
     | application {$expr = $application.app;}
-    | symbol {$expr = $symbol.sym;}
-    | '(' expression ')' {$expr = $expression.expr;};
+    | arule {$expr = $arule.ar;};
 
 expressionArg returns [Expression expr] :
-    arule {$expr = $arule.ar;}
-    | symbol {$expr = $symbol.sym;}
+    symbol {$expr = $symbol.sym;}
+    | STRING {$expr = new Expression.StringLiteral($STRING.text, $start, $stop);}
     | '(' expression ')' {$expr = $expression.expr;};
 
 arule returns [Expression ar] :
@@ -97,8 +110,12 @@ symbol returns [Expression sym] :
 application returns [Expression app] :
     IDENT {String ruleName = $IDENT.text; ArrayList<Expression> args = new ArrayList<>();}
     (expressionArg {args.add($expressionArg.expr);})*
+    (arule {args.add($arule.ar);})?
     {$app = new Expression.Application(ruleName, args, $start, $stop);};
 
 IDENT : [a-zA-Z_][a-zA-Z0-9_\-/]* ;
 NUM : [0-9]+ ;
+STRING : '"' (~["]|'\\'[nrt"])* '"';
 WS : [ \n\r\t]+ -> skip ;
+
+LINE_COMMENT : '#' ~[\r\n]* -> skip ;

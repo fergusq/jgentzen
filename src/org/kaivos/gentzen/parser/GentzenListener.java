@@ -29,6 +29,26 @@ public interface GentzenListener extends ParseTreeListener {
 	 */
 	void exitGentzenFile(GentzenParser.GentzenFileContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link GentzenParser#importDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterImportDecl(GentzenParser.ImportDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#importDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitImportDecl(GentzenParser.ImportDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#exportDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterExportDecl(GentzenParser.ExportDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#exportDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitExportDecl(GentzenParser.ExportDeclContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link GentzenParser#ruleDecl}.
 	 * @param ctx the parse tree
 	 */

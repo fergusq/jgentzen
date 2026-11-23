@@ -1,11 +1,19 @@
-inbyte : () / ($1(iosys) |- $2(|\|));
+<- "stdlib";
+<- "iolib";
 
-outbyte : () / ($1(iosys), $2(|\|) |- $3(++));
+helloworld : () / ($1(iosys) |- $2(++));
+helloworld = [x,y] cut "Hello world!" [z] outtext x z y;
 
-outtext : () / ($1(iosys), $2(.. |\|) |- $3(++));
-outtext = [io,s,z] cut true [t] fold s t z [ch,_,k] outbyte io ch k;
+#demorgan1 : () / ($1(~ (?a \/ ?a)), *a |- $2((~ ?a) /\ (~ ?a)), *b);
+#demorgan1 = [x,o1] split/and o1 ([o2] left/or o2 [y] init x y) ([o2] left/or o2 [y] init x y);
 
-helloworld : () / (|- $1(.. |\|));
+#demorgan2 : () / ($1((~ ?a) /\ (~ ?a)), *a |- $2(~ (?a \/ ?a)), *b);
+#demorgan2 = [i1,y] left/and i1 [i2] split/or i2 ([x] init x y) ([x] init x y);
+
+twice : ($1(iosys) |- $2(++)) / ($1(iosys) |- $2(++ /\ ++));
+twice = [r / i,p] split/and p ([o] r i o) ([o] r i o);
 
 main : () / ($1(iosys) |- $2(++));
-main = [x,y] cut helloworld [z] outtext x z y;
+main = [i,o] cut ([p] twice i p helloworld) [x] left/and x [z] init z o;
+
+-> main;
