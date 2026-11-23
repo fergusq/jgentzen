@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+    <!-- Source directory -->
+    <classpathentry kind="src" path="src"/>
+
+    <!-- JDK / runtime (Eclipse resolves this to the default JRE) -->
+    <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+
+    <!-- Output directory -->
+    <classpathentry kind="output" path="bin"/>
+</classpath>
