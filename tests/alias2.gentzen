@@ -9,11 +9,11 @@ zero = [out] left/or out [u] true u;
 two : () / (|- $1(nat));
 two = [out] right/or out [n1] right/or n1 [n0] zero n0;
 
-make_pair a b == cut ([p] split/and p ([left] init a left) ([right] init b right));
+make_pair a b == [p] split/and p ([left] init a left) ([right] init b right);
 
 add : () / ($1(nat), $2(nat) |- $3(@ nat));
 add = [a, b, out]
-    make_pair a b [pair]
+    cut (make_pair a b) [pair]
     loop pair out [cur, next, done]
     left/and cur [cur_a]
     right/and cur [cur_b]

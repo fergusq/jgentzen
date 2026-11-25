@@ -323,7 +323,7 @@ public sealed interface Expression {
                         } catch (ExpressionTypeUnificationException e) {
                             throw new TypeCheckException(
                                 "type mismatch: expected argument " + (i+1)
-                                + " of \"" + rule + "\" to be " + param.type().toGentzen()
+                                + " of \"" + rule + "\" to be " + param.type().substitute(unification.typeUnification()).toGentzen()
                                 + ", but the inferred type was " + tcr.type().toGentzen(),
                                 e, start, stop
                             );

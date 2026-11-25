@@ -119,13 +119,14 @@ public class MacroProcessor implements TokenSource {
 					} while (depth != 0);
 					args.add(argTokens);
 				}
+				var j = i;
 				for (var macroToken : macro.tokens()) {
 				    var index = macro.params().indexOf(macroToken.getText());
 					if (index != -1) {
-					    tokens.addAll(i, args.get(index));
-						i += args.get(index).size();
+					    tokens.addAll(j, args.get(index));
+						j += args.get(index).size();
 					} else {
-					    tokens.add(i++, macroToken);
+					    tokens.add(j++, macroToken);
 					}
 				}
 			}

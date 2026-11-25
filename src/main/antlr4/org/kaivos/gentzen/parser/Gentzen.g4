@@ -1,8 +1,6 @@
 grammar Gentzen;
 
 @header {
-package org.kaivos.gentzen.parser;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
