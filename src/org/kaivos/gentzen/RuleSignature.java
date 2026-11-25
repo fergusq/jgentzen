@@ -29,13 +29,16 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
         );
     }
     public RuleSignature substitute(SequentUnificationResult substitutions, Scope scope) throws ExpressionTypeUnificationException {
+        return substitute(substitutions, scope, false);
+    }
+    public RuleSignature substitute(SequentUnificationResult substitutions, Scope scope, boolean noContextVars) throws ExpressionTypeUnificationException {
         ArrayList<Sequent> newAbove = new ArrayList<>();
         for (var a : above) {
-            newAbove.add(a.substitute(substitutions, scope));
+            newAbove.add(a.substitute(substitutions, scope, noContextVars));
         }
         return new RuleSignature(
             newAbove,
-            below.substitute(substitutions, scope)
+            below.substitute(substitutions, scope, noContextVars)
         );
     }
     public SequentUnificationResult unify(RuleSignature other, Scope scope) throws RuleSignatureUnificationException, SequentUnificationException, ExpressionTypeUnificationException {
@@ -122,26 +125,30 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                 HasTypeVars.listWithInstance(contextVars, instance)
             );
         }
-        public Sequent substitute(SequentUnificationResult substitutions, Scope scope) throws ExpressionTypeUnificationException {
+        public Sequent substitute(SequentUnificationResult substitutions, Scope scope, boolean noContextVars) throws ExpressionTypeUnificationException {
             HashMap<String, SequentParameter> newBoundParams = new HashMap<>(boundParams);
-            ArrayList<ContextVarParameter> newContextVars = new ArrayList<>();
-            for (ContextVarParameter cvarp : contextVars) {
-                if (substitutions.contextUnification().containsKey(cvarp)) {
-                    for (Map.Entry<String, SequentParameter> entry : substitutions.contextUnification().get(cvarp).entrySet()) {
-                        String variable = entry.getKey();
-                        SequentParameter newValue = entry.getValue();
-                        if (newBoundParams.containsKey(variable)) {
-                            newValue = newValue.substitute(newValue.type().unify(newBoundParams.get(variable).type(), scope));
-                            /*throw new RuntimeException(
-                                "illegal substitution of existing parameter " + variable
-                                + ": tried to subtitute " + variable + " -> " + newValue
-                                + ", but " + boundParams + " already has " + variable
-                                + "; substitutions: " + substitutions);*/
+            List<ContextVarParameter> newContextVars = new ArrayList<>();
+            if (noContextVars) {
+                newContextVars = contextVars;
+            } else {
+                for (ContextVarParameter cvarp : contextVars) {
+                    if (substitutions.contextUnification().containsKey(cvarp)) {
+                        for (Map.Entry<String, SequentParameter> entry : substitutions.contextUnification().get(cvarp).entrySet()) {
+                            String variable = entry.getKey();
+                            SequentParameter newValue = entry.getValue();
+                            if (newBoundParams.containsKey(variable)) {
+                                newValue = newValue.substitute(newValue.type().unify(newBoundParams.get(variable).type(), scope));
+                                /*throw new RuntimeException(
+                                    "illegal substitution of existing parameter " + variable
+                                    + ": tried to subtitute " + variable + " -> " + newValue
+                                    + ", but " + boundParams + " already has " + variable
+                                    + "; substitutions: " + substitutions);*/
+                            }
+                            newBoundParams.put(variable, newValue);
                         }
-                        newBoundParams.put(variable, newValue);
+                    } else {
+                        newContextVars.add(cvarp);
                     }
-                } else {
-                    newContextVars.add(cvarp);
                 }
             }
             return new Sequent(

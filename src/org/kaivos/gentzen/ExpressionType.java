@@ -96,8 +96,9 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other.equals(this)) {
                 return Map.of();
-            }
-            if (other.getTypeVars().contains(this)) {
+            } else if (instance == 0 && other instanceof TypeVar tv && tv.instance != 0) {
+                return Map.of(tv, this);
+            } else if (other.getTypeVars().contains(this) || instance == 0) {
                 throw new ExpressionTypeUnificationException(this, other);
             }
             return Map.of(this, other);
@@ -135,6 +136,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Not t) {
                 return type.unify(t.type, scope);
             } else {
@@ -169,6 +172,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof And t) {
                 return mergeUnification(left.unify(t.left, scope), right.unify(t.right, scope), scope);
             } else {
@@ -204,6 +209,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Or t) {
                 return mergeUnification(left.unify(t.left, scope), right.unify(t.right, scope), scope);
             } else {
@@ -239,6 +246,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Maybe t) {
                 return type.unify(t.type, scope);
             } else {
@@ -269,6 +278,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Nat) {
                 return Map.of();
             } else {
@@ -298,6 +309,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Unit) {
                 return Map.of();
             } else {
@@ -327,6 +340,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Bottom) {
                 return Map.of();
             } else {
@@ -360,6 +375,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof List t) {
                 return type.unify(t.type, scope);
             } else {
@@ -394,6 +411,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Box t) {
                 return type.unify(t.type, scope);
             } else {
@@ -424,6 +443,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else if (other instanceof Atomic t && name.equals(t.name())) {
                 return Map.of();
             } else {
@@ -455,6 +476,18 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
+            if (other instanceof CustomType t && name.equals(t.name) && args.size() == t.args().size()) {
+                if (args.size() == 0) {
+                    return Map.of();
+                } else {
+                    var bindings = args.get(0).unify(t.args().get(0), scope);
+                    for (var i = 1; i < args.size(); i++) {
+                        bindings = mergeUnification(bindings, args.get(i).unify(t.args().get(i), scope), scope);
+                    }
+                    return bindings;
+                }
+            }
+
             var resolvedType = scope.resolveType(name);
             var args = this.args;
             while (resolvedType.isPresent()) {
@@ -480,7 +513,6 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
                                 args = newBodyArgs;
                                 continue;
                             } else {
-                                scope = new Scope(scope, Map.of(), newAliases, Map.of());
                                 return alias.body().get().unify(other, scope);
                             }
                         } else {
@@ -499,16 +531,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
 
             if (other instanceof TypeVar tv) {
                 return tv.unify(this, scope);
-            } else if (other instanceof CustomType t && name.equals(t.name) && args.size() == t.args().size()) {
-                if (args.size() == 0) {
-                    return Map.of();
-                } else {
-                    var bindings = args.get(0).unify(t.args().get(0), scope);
-                    for (var i = 1; i < args.size(); i++) {
-                        bindings = mergeUnification(bindings, args.get(i).unify(t.args().get(i), scope), scope);
-                    }
-                    return bindings;
-                }
+            } else if (other instanceof CustomType ct) {
+                return ct.unify(this, scope);
             } else {
                 throw new ExpressionTypeUnificationException(this, other);
             }

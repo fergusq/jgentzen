@@ -1,4 +1,5 @@
 <- "stdlib";
+<- "iolib";
 
 lem : () / (|- $1(?x), $2(~ ?x));
 lem = [out, k] init k out;
@@ -9,7 +10,19 @@ notL = [f / i] f i;
 notR : ($1(?x), *a |- *b) / (*a |- $1(~?x), *b);
 notR = [f / o] f o;
 
-dne : () / ($1(~ ~ ?x) |- $2(?x));
-dne = [kk, out] notR kk [k2] init k2 out;
+dneL : () / ($1(~ ~ ?x) |- $2(?x));
+dneL = [kk, out] notR kk [k2] init k2 out;
 
--> lem notL notR dne;
+dneR : () / ($1(?x) |- $2(~ ~ ?x));
+dneR = [kk, out] notL out [k2] init kk k2;
+
+partial x y == [part] x y part;
+
+main : () / ($1(iosys) |- $2(++));
+main = [x,y]
+    cut "Hello world!" [h1]
+    cut (partial dneR h1) [h3]
+    cut (partial dneL h3) [z]
+    outtext x z y;
+
+-> lem notL notR dneL dneR main;

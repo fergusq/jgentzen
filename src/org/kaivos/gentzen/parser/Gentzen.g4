@@ -204,5 +204,6 @@ NUM : [0-9]+ ;
 CHAR : '\'' . '\'' ;
 STRING : '"' (~["]|'\\'[nrt"])* '"';
 WS : [ \n\r\t]+ -> skip ;
+EQ : '==' ;
 
 LINE_COMMENT : '#' ~[\r\n]* -> skip ;

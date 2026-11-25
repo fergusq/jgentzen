@@ -169,8 +169,8 @@ public sealed interface Expression {
                         throw new TypeCheckException(
                             "type mismatch: "
                             + "expected " + expectedType.toGentzen()
-                            + ", but the inferred type of " + toGentzen() + " is " + newType.toGentzen()
-                            + " (the inferred type of " + body.toGentzen() + " is " + bodyType.type().toGentzen() + ")",
+                            + ", but the inferred type of \"" + toGentzen() + "\" is " + newType.toGentzen()
+                            + " (the inferred type of \"" + body.toGentzen() + "\" is " + bodyType.type().toGentzen() + ")",
                             e, start, stop
                         );
                     }
@@ -178,7 +178,7 @@ public sealed interface Expression {
                     throw new TypeCheckException(
                         "expected " + expectedType.toGentzen()
                         + ", but the inferred type is not a rule definition"
-                        + " (the inferred type of " + body.toGentzen() + " is " + bodyType.type().toGentzen() + ")",
+                        + " (the inferred type of \"" + body.toGentzen() + "\" is " + bodyType.type().toGentzen() + ")",
                         start, stop
                     );
                 }
@@ -250,7 +250,7 @@ public sealed interface Expression {
         @Override
         public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
             if (!(expectedType instanceof RuleSignature)) {
-                throw new TypeCheckException("expected " + expectedType.toGentzen() + ", got rule " + rule, start, stop);
+                throw new TypeCheckException("expected " + expectedType.toGentzen() + ", got rule \"" + rule + "\"", start, stop);
             }
             var et = (RuleSignature) expectedType;
             Optional<RuleSignature> resolved;
@@ -271,15 +271,21 @@ public sealed interface Expression {
             } else {
                 resolved = scope.resolveRule(rule);
                 if (resolved.isEmpty()) {
-                    throw new TypeCheckException("cannot resolve symbol " + rule + " as a rule", start, stop);
+                    throw new TypeCheckException("cannot resolve symbol \"" + rule + "\" as a rule", start, stop);
                 }
             }
-            RuleSignature resolvedRule = resolved.get();
+            RuleSignature resolvedRule = resolved.get().withInstance(Scope.nextCounter());
             var numberedParams = resolvedRule.below().numberedParams();
             int numParams = numberedParams.size();
             int numAbove = resolvedRule.above().size();
             if (args.size() != numParams + numAbove) {
-                throw new TypeCheckException("wrong number of arguments for " + rule + ", expected " + numParams + " parameters and " + numAbove + " above sequents, got total of " + args.size(), start, stop);
+                throw new TypeCheckException(
+                    "wrong number of arguments for \"" + rule
+                    + "\", expected " + numParams + " parameters and "
+                    + numAbove + " above sequents,"
+                    + " got total of " + args.size(),
+                    start, stop
+                );
             }
             var newBoundParams = new HashMap<>(resolvedRule.below().boundParams());
             var flippedToOutput = new HashSet<String>();
@@ -315,7 +321,12 @@ public sealed interface Expression {
                         try {
                             unification = unification.mergeWith(tcr.unification(), scope);
                         } catch (ExpressionTypeUnificationException e) {
-                            throw new TypeCheckException("type error", e, start, stop);
+                            throw new TypeCheckException(
+                                "type mismatch: expected argument " + (i+1)
+                                + " of \"" + rule + "\" to be " + param.type().toGentzen()
+                                + ", but the inferred type was " + tcr.type().toGentzen(),
+                                e, start, stop
+                            );
                         }
                     } else {
                         throw new TypeCheckException("parameter $" + (i+1) + ": expected a variable, got " + args.get(i).toGentzen(), start, stop);
@@ -327,16 +338,18 @@ public sealed interface Expression {
             }
             for (int i = 0; i < numAbove; i++) {
                 var type = new RuleSignature(List.of(), resolvedRule.above().get(i));
-                var value = args.get(i + numParams);
-                var tcr = value.typeCheck(scope, type);
-                var rs = (RuleSignature) tcr.type;
+                RuleSignature rs = null;
                 try {
+                    type = type.substitute(unification, scope, true);
+                    var value = args.get(i + numParams);
+                    var tcr = value.typeCheck(scope, type);
+                    rs = (RuleSignature) tcr.type;
                     unification = unification.mergeWith(tcr.unification(), scope).mergeWith(rs.unify(type, scope), scope);
                 } catch (ExpressionTypeUnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
                     throw new TypeCheckException(
                         "type mismatch:"
-                        + " expected " + type.toGentzen()
-                        + ", but the above sequent " + (i+1) + " was inferred to have type " + rs.toGentzen(),
+                        + " expected above sequent " + (i+1) + " of \"" + rule + "\" to be " + type.toGentzen()
+                        + ", but the above sequent was inferred to have type " + (rs == null ? "_" : rs.toGentzen()),
                         e, start, stop
                     );
                 }
@@ -345,21 +358,25 @@ public sealed interface Expression {
                 List.of(),
                 new RuleSignature.Sequent(Map.of(), newBoundParams, resolvedRule.below().contextVars())
             );
+            try {
+                newType = newType.substitute(unification, scope);
+                unification = unification.mergeWith(newType.unify(et, scope), scope);
+                newType = newType.substitute(unification, scope);
+            } catch (ExpressionTypeUnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
+                throw new TypeCheckException(
+                    "type mismatch: expected below sequent of " + rule + " to be " + et.toGentzen()
+                    + ", but the below sequent was inferred to have type " + newType.toGentzen()
+                    , e, start, stop
+                );
+            }
             //System.out.println("/unify: " + unification);
             //System.err.println(this.toGentzen());
             //System.err.println(" expected: " + et.toGentzen());
             //System.err.println(" got: " + newType.toGentzen());
             //System.err.println(" got after unification: " + newType.toGentzen());
-            try {
-                newType = newType.substitute(unification, scope);
-                var finalUnification = newType.unify(et, scope);
-                newType = newType.substitute(finalUnification, scope);
-                this.type = Optional.of(newType);
-                this.flippedToOutput = Optional.of(flippedToOutput);
-                return new TypeCheckResult(newType, finalUnification.mergeWith(unification, scope));
-            } catch (ExpressionTypeUnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
-                throw new TypeCheckException("type error", e, start, stop);
-            }
+            this.type = Optional.of(newType);
+            this.flippedToOutput = Optional.of(flippedToOutput);
+            return new TypeCheckResult(newType, unification);
         }
     }
     public final class Symbol implements Expression {
@@ -414,7 +431,7 @@ public sealed interface Expression {
             if (expectedType instanceof RuleSignature rs) {
                 Optional<RuleSignature> resolved = scope.resolveRule(symbol);
                 if (resolved.isEmpty()) {
-                    throw new TypeCheckException("cannot resolve symbol " + symbol + " as a rule", start, stop);
+                    throw new TypeCheckException("cannot resolve symbol \"" + symbol + "\" as a rule", start, stop);
                 }
                 try {
                     var unification = rs.unify(resolved.get(), scope);
@@ -422,13 +439,13 @@ public sealed interface Expression {
                     this.type = Optional.of(newType);
                     return new TypeCheckResult(newType, unification);
                 } catch (ExpressionTypeUnificationException | SequentUnificationException | RuleSignatureUnificationException e) {
-                    throw new TypeCheckException("type error", e, start, stop);
+                    throw new TypeCheckException("type mismatch: expected " + expectedType.toGentzen() + ", but the inferred type of \"" + symbol + "\" was " + resolved.get().toGentzen(), e, start, stop);
                 }
             } else {
                 var et = (ExpressionType) expectedType;
                 Optional<ExpressionType> resolved = scope.resolveVariable(symbol);
                 if (resolved.isEmpty()) {
-                    throw new TypeCheckException("cannot resolve symbol " + symbol + " as a variable", start, stop);
+                    throw new TypeCheckException("cannot resolve symbol \"" + symbol + "\" as a variable", start, stop);
                 }
                 try {
                     //System.err.println(this.toGentzen());
@@ -439,7 +456,7 @@ public sealed interface Expression {
                     this.type = Optional.of(newType);
                     return new TypeCheckResult(newType, new RuleSignature.SequentUnificationResult(unification, Map.of()));
                 } catch (ExpressionTypeUnificationException e) {
-                    throw new TypeCheckException("type error", e, start, stop);
+                    throw new TypeCheckException("type mismatch: expected " + expectedType.toGentzen() + ", but the inferred type of \"" + symbol + "\" was " + resolved.get().toGentzen(), e, start, stop);
                 }
             }
         }

@@ -13,6 +13,7 @@ public class Main {
             .map(Path::toString)
             .map(s -> s.replaceFirst("\\..*", ""))
             .forEach(testCase -> {
+                System.out.println("Compiling " + testCase + "...");
                 loadTest(testCase.toString()).ifPresent(scheme -> {
                     var outPath = Path.of("./tests-out").resolve(testCase + ".ss");
                     try {

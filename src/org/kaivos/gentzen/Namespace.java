@@ -78,7 +78,8 @@ public class Namespace {
         boolean success = true;
         try {
             GentzenLexer lexer = new GentzenLexer(CharStreams.fromPath(target));
-            GentzenParser parser = new GentzenParser(new CommonTokenStream(lexer));
+            MacroProcessor processor = new MacroProcessor(lexer);
+            GentzenParser parser = new GentzenParser(new CommonTokenStream(processor));
             var decldefs = parser.gentzenFile().decldefs;
             for (var decldef : decldefs) {
                 var location = decldef.getStart().toString();
@@ -139,7 +140,7 @@ public class Namespace {
             lines.add(";(import " + s + ")");
         }
         lines.add("");
-        for (Rule r : definedRules.keySet().stream().sorted().map(definedRules::get).toList()) {
+        for (Rule r : definedRules.values().stream().sorted((a, b) -> a.getDeclStart().getTokenIndex() - b.getDeclStart().getTokenIndex()).toList()) {
             r.getBody().ifPresent(body -> {
                 lines.add("; " + r.getName() + " : " + r.getSignature().toGentzen());
                 lines.add("; " + r.getName() + " = " + body.toGentzen());

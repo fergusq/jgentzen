@@ -38,7 +38,8 @@ public class GentzenParser extends Parser {
 		T__9=10, T__10=11, T__11=12, T__12=13, T__13=14, T__14=15, T__15=16, T__16=17, 
 		T__17=18, T__18=19, T__19=20, T__20=21, T__21=22, T__22=23, T__23=24, 
 		T__24=25, T__25=26, T__26=27, T__27=28, T__28=29, T__29=30, T__30=31, 
-		T__31=32, T__32=33, IDENT=34, NUM=35, CHAR=36, STRING=37, WS=38, LINE_COMMENT=39;
+		T__31=32, T__32=33, IDENT=34, NUM=35, CHAR=36, STRING=37, WS=38, EQ=39, 
+		LINE_COMMENT=40;
 	public static final int
 		RULE_gentzenFile = 0, RULE_importDecl = 1, RULE_exportDecl = 2, RULE_ruleDecl = 3, 
 		RULE_ruleDef = 4, RULE_ruleSignature = 5, RULE_sequent = 6, RULE_type = 7, 
@@ -61,7 +62,8 @@ public class GentzenParser extends Parser {
 			null, "'<-'", "';'", "'->'", "':'", "'='", "'('", "')'", "'/'", "'*'", 
 			"'$'", "','", "'|-'", "'?'", "'~'", "'/\\'", "'\\/'", "'@'", "'|\\|'", 
 			"'++'", "'_|_'", "'..'", "'[]'", "'<>'", "'!'", "'+'", "'['", "']'", 
-			"':='", "'???'", "'{'", "'}'", "'&'", "'%'"
+			"':='", "'???'", "'{'", "'}'", "'&'", "'%'", null, null, null, null, 
+			null, "'=='"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
@@ -70,7 +72,7 @@ public class GentzenParser extends Parser {
 			null, null, null, null, null, null, null, null, null, null, null, null, 
 			null, null, null, null, null, null, null, null, null, null, null, null, 
 			null, null, null, null, null, null, null, null, null, null, "IDENT", 
-			"NUM", "CHAR", "STRING", "WS", "LINE_COMMENT"
+			"NUM", "CHAR", "STRING", "WS", "EQ", "LINE_COMMENT"
 		};
 	}
 	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
@@ -2082,7 +2084,7 @@ public class GentzenParser extends Parser {
 	}
 
 	public static final String _serializedATN =
-		"\u0004\u0001\'\u01bb\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001\u0002"+
+		"\u0004\u0001(\u01bb\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001\u0002"+
 		"\u0002\u0007\u0002\u0002\u0003\u0007\u0003\u0002\u0004\u0007\u0004\u0002"+
 		"\u0005\u0007\u0005\u0002\u0006\u0007\u0006\u0002\u0007\u0007\u0007\u0002"+
 		"\b\u0007\b\u0002\t\u0007\t\u0002\n\u0007\n\u0002\u000b\u0007\u000b\u0002"+

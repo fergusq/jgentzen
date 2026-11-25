@@ -47,8 +47,13 @@ public class Scope {
         if (definedTypes.containsKey(name)) {
             return Optional.of(definedTypes.get(name));
         } else {
-            return Optional.empty();
+            return parent.flatMap(p -> p.resolveType(name));
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Scope[parent=" + parent + ", definedRules=" + definedRules + ", definedTypes" + definedTypes + ", boundVariables=" + boundVariables + "]";
     }
 
     private static int COUNTER = 0;

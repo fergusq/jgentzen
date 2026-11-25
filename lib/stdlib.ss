@@ -14,7 +14,7 @@
 (define (g/right/or value above) (above (lambda (r) (value (list 'right r)))))
 
 ; split/or : ($1(?x), *a |- *b; $2(?y), *a |- *b) / ($1(?x \/ ?y), *a |- *b);
-(define (g/split/or value left right) (if (= (car value) 'left)
+(define (g/split/or value left right) (if (eq? (car value) 'left)
                                           (left (cadr value))
                                           (right (cadr value))))
 
