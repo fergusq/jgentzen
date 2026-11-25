@@ -139,7 +139,7 @@ public class Namespace {
             lines.add(";(import " + s + ")");
         }
         lines.add("");
-        for (Rule r : definedRules.values()) {
+        for (Rule r : definedRules.keySet().stream().sorted().map(definedRules::get).toList()) {
             r.getBody().ifPresent(body -> {
                 lines.add("; " + r.getName() + " : " + r.getSignature().toGentzen());
                 lines.add("; " + r.getName() + " = " + body.toGentzen());

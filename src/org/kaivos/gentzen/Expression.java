@@ -64,6 +64,20 @@ public sealed interface Expression {
             return stop;
         }
 
+        public List<String> getParams() {
+            return params;
+        }
+
+        public List<String> getNormalizedParams() {
+            // normalize anonymous params to have different names
+            var params = new ArrayList<String>();
+            for (int i = 0; i < this.params.size(); i++) {
+                var param = this.params.get(i);
+                params.add(param.equals("_") ? "_@" + i : param);
+            }
+            return params;
+        }
+
         @Override
         public String toGentzen() {
             if (above.size() == 0) {
@@ -84,18 +98,13 @@ public sealed interface Expression {
 
         @Override
         public String toScheme() {
-            String p = Stream.concat(params.stream(), above.stream().map(a -> "g/" + a)).collect(joining(" "));
+            String p = Stream.concat(getNormalizedParams().stream(), above.stream().map(a -> "g/" + a)).collect(joining(" "));
             return "(lambda (" + p + ") " + body.toScheme() + ")";
         }
 
         @Override
         public TypeCheckResult typeCheck(Scope scope, Type expectedType) throws TypeCheckException {
-            // normalize anonymous params to have different names
-            var params = new ArrayList<String>();
-            for (int i = 0; i < this.params.size(); i++) {
-                var param = this.params.get(i);
-                params.add(param.equals("_") ? "_@" + i : param);
-            }
+            var params = this.getNormalizedParams();
             if (expectedType instanceof RuleSignature rs) {
                 if (above.size() != rs.above().size()) {
                     throw new TypeCheckException("rule declaration and rule definition must have the same number of above sequents", start, stop);
@@ -511,7 +520,7 @@ public sealed interface Expression {
 
         @Override
         public String toScheme() {
-            return "(lambda (output) (output (string->list " + literal + ")))";
+            return "(lambda (output) (output (map char->integer (string->list " + literal + "))))";
         }
     }
 
