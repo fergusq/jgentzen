@@ -6,17 +6,24 @@ import java.util.Optional;
 public class Scope {
     private Optional<Scope> parent;
     private Map<String, RuleSignature> definedRules;
+    private Map<String, DefinedType> definedTypes;
     private Map<String, ExpressionType> boundVariables;
 
-    public Scope(Map<String, RuleSignature> definedRules, Map<String, ExpressionType> boundVariables) {
+    public Scope(
+        Map<String, RuleSignature> definedRules,
+        Map<String, DefinedType> definedTypes,
+        Map<String, ExpressionType> boundVariables
+    ) {
         this.parent = Optional.empty();
         this.definedRules = definedRules;
+        this.definedTypes = definedTypes;
         this.boundVariables = boundVariables;
     }
 
-    public Scope(Scope parent, Map<String, RuleSignature> definedRules, Map<String, ExpressionType> boundVariables) {
+    public Scope(Scope parent, Map<String, RuleSignature> definedRules, Map<String, DefinedType> definedTypes, Map<String, ExpressionType> boundVariables) {
         this.parent = Optional.of(parent);
         this.definedRules = definedRules;
+        this.definedTypes = definedTypes;
         this.boundVariables = boundVariables;
     }
 
@@ -33,6 +40,14 @@ public class Scope {
             return Optional.of(boundVariables.get(name).withInstance(nextCounter()));
         } else {
             return parent.flatMap(p -> p.resolveVariable(name));
+        }
+    }
+
+    public Optional<DefinedType> resolveType(String name) {
+        if (definedTypes.containsKey(name)) {
+            return Optional.of(definedTypes.get(name));
+        } else {
+            return Optional.empty();
         }
     }
 

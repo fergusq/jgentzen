@@ -4,12 +4,17 @@ package org.kaivos.gentzen.parser;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.kaivos.gentzen.DeclDef;
+import org.kaivos.gentzen.DefinedType;
 import org.kaivos.gentzen.Expression;
 import org.kaivos.gentzen.ExpressionType;
+import org.kaivos.gentzen.Kind;
 import org.kaivos.gentzen.Rule;
 import org.kaivos.gentzen.RuleSignature;
+import org.kaivos.gentzen.TypeAlias;
+import org.kaivos.gentzen.Typeclass;
 import org.kaivos.gentzen.Utils;
 
 import org.antlr.v4.runtime.tree.ParseTreeListener;
@@ -90,16 +95,6 @@ public interface GentzenListener extends ParseTreeListener {
 	 */
 	void exitSequent(GentzenParser.SequentContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link GentzenParser#seqParameters}.
-	 * @param ctx the parse tree
-	 */
-	void enterSeqParameters(GentzenParser.SeqParametersContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link GentzenParser#seqParameters}.
-	 * @param ctx the parse tree
-	 */
-	void exitSeqParameters(GentzenParser.SeqParametersContext ctx);
-	/**
 	 * Enter a parse tree produced by {@link GentzenParser#type}.
 	 * @param ctx the parse tree
 	 */
@@ -119,6 +114,26 @@ public interface GentzenListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitExpression(GentzenParser.ExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#expressionTermLeft}.
+	 * @param ctx the parse tree
+	 */
+	void enterExpressionTermLeft(GentzenParser.ExpressionTermLeftContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#expressionTermLeft}.
+	 * @param ctx the parse tree
+	 */
+	void exitExpressionTermLeft(GentzenParser.ExpressionTermLeftContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#expressionTermRight}.
+	 * @param ctx the parse tree
+	 */
+	void enterExpressionTermRight(GentzenParser.ExpressionTermRightContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#expressionTermRight}.
+	 * @param ctx the parse tree
+	 */
+	void exitExpressionTermRight(GentzenParser.ExpressionTermRightContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link GentzenParser#expressionArg}.
 	 * @param ctx the parse tree
@@ -169,4 +184,44 @@ public interface GentzenListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitApplication(GentzenParser.ApplicationContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#typealias}.
+	 * @param ctx the parse tree
+	 */
+	void enterTypealias(GentzenParser.TypealiasContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#typealias}.
+	 * @param ctx the parse tree
+	 */
+	void exitTypealias(GentzenParser.TypealiasContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#typeclass}.
+	 * @param ctx the parse tree
+	 */
+	void enterTypeclass(GentzenParser.TypeclassContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#typeclass}.
+	 * @param ctx the parse tree
+	 */
+	void exitTypeclass(GentzenParser.TypeclassContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#kind}.
+	 * @param ctx the parse tree
+	 */
+	void enterKind(GentzenParser.KindContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#kind}.
+	 * @param ctx the parse tree
+	 */
+	void exitKind(GentzenParser.KindContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link GentzenParser#cutEliminationRuleDef}.
+	 * @param ctx the parse tree
+	 */
+	void enterCutEliminationRuleDef(GentzenParser.CutEliminationRuleDefContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link GentzenParser#cutEliminationRuleDef}.
+	 * @param ctx the parse tree
+	 */
+	void exitCutEliminationRuleDef(GentzenParser.CutEliminationRuleDefContext ctx);
 }

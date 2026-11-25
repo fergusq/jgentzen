@@ -1,7 +1,7 @@
 package org.kaivos.gentzen;
 
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
+import static org.kaivos.gentzen.Utils.fromEntries;
 
 import java.util.Collection;
 import java.util.List;
@@ -10,7 +10,9 @@ import java.util.stream.Stream;
 
 public interface HasTypeVars<T> {
     public T withInstance(int instance);
-    public T substitute(Map<ExpressionType.TypeVar, ExpressionType> substitutions);
+    public T substitute(
+        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+    );
 
     public static <K, T extends HasTypeVars<? extends T>> Map<
         K,
@@ -22,7 +24,7 @@ public interface HasTypeVars<T> {
             .map(e ->
                 Map.entry(e.getKey(), e.getValue().withInstance(instance))
             )
-            .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+            .collect(fromEntries());
     }
 
     public static <T extends HasTypeVars<? extends T>> List<T> listWithInstance(
@@ -45,14 +47,17 @@ public interface HasTypeVars<T> {
     public static <K, T extends HasTypeVars<? extends T>> Map<
         K,
         T
-    > mapSubstitute(Map<K, T> map, Map<ExpressionType.TypeVar, ExpressionType> substitutions) {
+    > mapSubstitute(
+        Map<K, T> map,
+        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+    ) {
         return map
             .entrySet()
             .stream()
             .map(e ->
                 Map.entry(e.getKey(), e.getValue().substitute(substitutions))
             )
-            .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+            .collect(fromEntries());
     }
 
     public static <T extends HasTypeVars<? extends T>> List<T> listSubstitute(

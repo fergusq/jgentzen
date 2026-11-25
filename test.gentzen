@@ -1,26 +1,20 @@
 <- "lib/stdlib";
 <- "lib/iolib";
 
-helloworld : () / ($1(iosys) |- $2(++));
-helloworld = [x,y] cut "Hello world!" [z] outtext x z y;
-
 #demorgan1 : () / ($1(~ (?a \/ ?a)), *a |- $2((~ ?a) /\ (~ ?a)), *b);
 #demorgan1 = [x,o1] split/and o1 ([o2] left/or o2 [y] init x y) ([o2] left/or o2 [y] init x y);
 
 #demorgan2 : () / ($1((~ ?a) /\ (~ ?a)), *a |- $2(~ (?a \/ ?a)), *b);
 #demorgan2 = [i1,y] left/and i1 [i2] split/or i2 ([x] init x y) ([x] init x y);
 
-twice : ($1(iosys) |- $2(++)) / ($1(iosys) |- $2(++ /\ ++));
-twice = [r / i,p] split/and p ([o] r i o) ([o] r i o);
+#twice : ($1(iosys) |- $2(++)) / ($1(iosys) |- $2(++ /\ ++));
+#twice = [r / i,p] split/and p ([o] r i o) ([o] r i o);
 
-main : () / ($1(iosys) |- $2(++));
-main = [i,o] cut ([p] twice i p helloworld) [x] left/and x [z] init z o;
+#main : () / ($1(iosys) |- $2(++));
+#main = [i,o] cut ([p] twice i p helloworld) [x] left/and x [z] init z o;
 
-lem : () / (|- $1(?x), $2(~ ?x));
-lem = [out, k] init k out;
 
-dne : () / ($1(~ ~ ?x) |- $2(?x));
-dne = [kk, out] cut ([k] init k out) ([k] init k kk);
+#dne = [kk, out] cut ([k] init k out) ([k] init k kk);
 
 
 -> main;

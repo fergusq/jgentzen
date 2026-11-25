@@ -1,0 +1,23 @@
+<- "stdlib";
+<- "iolib";
+do_zero : () / ($1(iosys) |- $2(@ ++));
+do_zero = [io,lp]
+    cut '0' [x]
+    loop x lp [_,_,k]
+    outbyte io x k;
+do_one : () / ($1(iosys) |- $2(@ ++));
+do_one = [io,lp]
+    cut '1' [x]
+    cut true [t]
+    loop t lp [_,k,_]
+    outbyte io x k;
+truth : () / ($1(iosys), $2(|\|) |- $3(@ ++));
+truth = [io,n,lp]
+    cut '0' [z]
+    cmp n z
+        (do_zero io lp)
+        (do_zero io lp)
+        (do_one io lp);
+main : () / ($1(iosys) |- $2(@ ++));
+main = [x,y] cut ([z] inbyte x z) ([z] truth x z y);
+-> main;

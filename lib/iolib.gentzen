@@ -1,6 +1,12 @@
-<- "lib/stdlib";
+<- "stdlib";
+
+iosys := ???;
+
 inbyte : () / ($1(iosys) |- $2(|\|));
+
 outbyte : () / ($1(iosys), $2(|\|) |- $3(++));
+
 outtext : () / ($1(iosys), $2(.. |\|) |- $3(++));
 outtext = [io,s,z] cut true [t] fold s t z [ch,_,k] outbyte io ch k;
+
 -> inbyte outbyte outtext;

@@ -1,15 +1,21 @@
 package org.kaivos.gentzen;
 
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
+import static org.kaivos.gentzen.Utils.fromEntries;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
-
 import org.kaivos.gentzen.ExpressionType.TypeVar;
-import org.kaivos.gentzen.ExpressionType.UnificationException;
+import org.kaivos.gentzen.exceptions.ExpressionTypeUnificationException;
+import org.kaivos.gentzen.exceptions.KindCheckException;
+import org.kaivos.gentzen.exceptions.RuleSignatureUnificationException;
+import org.kaivos.gentzen.exceptions.SequentUnificationException;
 
 public record RuleSignature(java.util.List<Sequent> above, Sequent below) implements Type {
     @Override
@@ -22,21 +28,44 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
             below.withInstance(instance)
         );
     }
-    public RuleSignature substitute(SequentUnificationResult substitutions) {
+    public RuleSignature substitute(SequentUnificationResult substitutions, Scope scope) throws ExpressionTypeUnificationException {
+        ArrayList<Sequent> newAbove = new ArrayList<>();
+        for (var a : above) {
+            newAbove.add(a.substitute(substitutions, scope));
+        }
         return new RuleSignature(
-            above.stream().map(s -> s.substitute(substitutions)).toList(),
-            below.substitute(substitutions)
+            newAbove,
+            below.substitute(substitutions, scope)
         );
     }
-    public SequentUnificationResult unify(RuleSignature other) throws RuleSignatureUnificationException, SequentUnificationException, UnificationException {
+    public SequentUnificationResult unify(RuleSignature other, Scope scope) throws RuleSignatureUnificationException, SequentUnificationException, ExpressionTypeUnificationException {
         if (above.size() != other.above().size()) {
             throw new RuleSignatureUnificationException("rules have different number of above sequents", this, other);
         }
-        var result = below.unify(other.below());
+        var result = below.unify(other.below(), scope);
         for (int i = 0; i < above.size(); i++) {
-            result = result.mergeWith(above.get(i).unify(other.above().get(i)));
+            result = result.mergeWith(above.get(i).unify(other.above().get(i), scope), scope);
         }
         return result;
+    }
+
+    public void kindCheck(Scope scope) throws KindCheckException {
+        for (var sequent : above) {
+            sequent.kindCheck(scope);
+        }
+        below.kindCheck(scope);
+    }
+
+    public static record ContextVarParameter(ContextVar var, Boolean input) implements HasTypeVars<ContextVarParameter> {
+		@Override
+		public ContextVarParameter withInstance(int instance) {
+			return new ContextVarParameter(var.withInstance(instance), input);
+		}
+
+		@Override
+		public ContextVarParameter substitute(Map<TypeVar, ExpressionType> substitutions) {
+			return new ContextVarParameter(var.substitute(substitutions), input);
+		}
     }
     public static record ContextVar(String name, int instance) implements HasTypeVars<ContextVar> {
         public String toGentzen() {
@@ -57,89 +86,175 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
         }
     }
 
-    public static record SequentParameters(Map<Integer, ExpressionType> numberedParams, Map<String, ExpressionType> boundParams, java.util.List<ContextVar> contextVars) {
+    public static record SequentParameter(ExpressionType type, Boolean input) implements HasTypeVars<SequentParameter> {
+		@Override
+		public SequentParameter withInstance(int instance) {
+			return new SequentParameter(type.withInstance(instance), input);
+		}
+
+		@Override
+		public SequentParameter substitute(Map<TypeVar, ExpressionType> substitutions) {
+			return new SequentParameter(type.substitute(substitutions), input);
+		}
+
+		public void kindCheck(Scope scope) throws KindCheckException {
+		    type.kindCheck(scope);
+		}
+    }
+    public static record Sequent(
+        Map<Integer, SequentParameter> numberedParams,
+        Map<String, SequentParameter> boundParams,
+        java.util.List<ContextVarParameter> contextVars
+    ) {
         public String toGentzen() {
-            ArrayList<String> strings = new ArrayList<>();
-            numberedParams.forEach((k, v) -> strings.add("$" + k + "(" + v.toGentzen() + ")"));
-            boundParams.forEach((k, v) -> strings.add(k + ":" + v.toGentzen()));
-            contextVars.forEach(v -> strings.add(v.toGentzen()));
-            return strings.stream().collect(joining(", "));
+            return List.of(true, false).stream().map(input -> {
+                ArrayList<String> strings = new ArrayList<>();
+                numberedParams.forEach((k, v) -> { if (v.input() == input) strings.add("$" + k + "(" + v.type().toGentzen() + ")"); });
+                boundParams.forEach((k, v) -> { if (v.input() == input) strings.add(k + ":" + v.type().toGentzen()); });
+                contextVars.forEach(v -> { if (v.input() == input) strings.add(v.var().toGentzen()); });
+                return strings.stream().collect(joining(", "));
+            }).collect(joining(" |- ")).strip();
         }
-        public SequentParameters withInstance(int instance) {
-            return new SequentParameters(
+        public Sequent withInstance(int instance) {
+            return new Sequent(
                 HasTypeVars.mapWithInstance(numberedParams, instance),
                 HasTypeVars.mapWithInstance(boundParams, instance),
                 HasTypeVars.listWithInstance(contextVars, instance)
             );
         }
-        public SequentParameters substitute(SequentUnificationResult substitutions) {
-            HashMap<String, ExpressionType> newBoundParams = new HashMap<>(boundParams);
-            ArrayList<ContextVar> newContextVars = new ArrayList<>();
-            for (ContextVar cvar : contextVars) {
-                if (substitutions.contextUnification().containsKey(cvar)) {
-                    for (Map.Entry<String, ExpressionType> entry : substitutions.contextUnification().get(cvar).entrySet()) {
+        public Sequent substitute(SequentUnificationResult substitutions, Scope scope) throws ExpressionTypeUnificationException {
+            HashMap<String, SequentParameter> newBoundParams = new HashMap<>(boundParams);
+            ArrayList<ContextVarParameter> newContextVars = new ArrayList<>();
+            for (ContextVarParameter cvarp : contextVars) {
+                if (substitutions.contextUnification().containsKey(cvarp)) {
+                    for (Map.Entry<String, SequentParameter> entry : substitutions.contextUnification().get(cvarp).entrySet()) {
                         String variable = entry.getKey();
-                        ExpressionType newValue = entry.getValue();
+                        SequentParameter newValue = entry.getValue();
                         if (newBoundParams.containsKey(variable)) {
-                            throw new RuntimeException("illegal substitution of existing parameter " + variable);
+                            newValue = newValue.substitute(newValue.type().unify(newBoundParams.get(variable).type(), scope));
+                            /*throw new RuntimeException(
+                                "illegal substitution of existing parameter " + variable
+                                + ": tried to subtitute " + variable + " -> " + newValue
+                                + ", but " + boundParams + " already has " + variable
+                                + "; substitutions: " + substitutions);*/
                         }
                         newBoundParams.put(variable, newValue);
                     }
                 } else {
-                    newContextVars.add(cvar);
+                    newContextVars.add(cvarp);
                 }
             }
-            return new SequentParameters(
+            return new Sequent(
                 HasTypeVars.mapSubstitute(numberedParams, substitutions.typeUnification()),
                 newBoundParams,
                 newContextVars
             );
         }
-        public SequentUnificationResult unify(SequentParameters other, Sequent thisSequent, Sequent otherSequent) throws SequentUnificationException, UnificationException {
-            if (!numberedParams.keySet().containsAll(other.numberedParams().keySet())
-                || !other.numberedParams().keySet().containsAll(numberedParams.keySet())) {
-                throw new SequentUnificationException("numbered parameters mismatch", thisSequent, otherSequent);
+        public SequentUnificationResult unify(Sequent other, Scope scope) throws SequentUnificationException, ExpressionTypeUnificationException {
+            var ans = new SequentUnificationResult(Map.of(), Map.of());
+            for (var input : List.of(true, false)) {
+                var thisNumberedParams = numberedParams
+                    .entrySet().stream()
+                    .filter(e -> e.getValue().input() == input)
+                    .collect(fromEntries());
+                var otherNumberedParams = other.numberedParams()
+                    .entrySet().stream()
+                    .filter(e -> e.getValue().input() == input)
+                    .collect(fromEntries());
+                var thisBoundParams = boundParams
+                    .entrySet().stream()
+                    .filter(e -> e.getValue().input() == input)
+                    .collect(fromEntries());
+                var otherBoundParams = other.boundParams()
+                    .entrySet().stream()
+                    .filter(e -> e.getValue().input() == input)
+                    .collect(fromEntries());
+                var thisContextVars = contextVars.stream().filter(c -> c.input() == input).collect(toList());
+                var otherContextVars = other.contextVars().stream().filter(c -> c.input() == input).collect(toList());
+
+                if (!thisNumberedParams.keySet().containsAll(otherNumberedParams.keySet())
+                    || !otherNumberedParams.keySet().containsAll(thisNumberedParams.keySet())) {
+                    throw new SequentUnificationException("numbered parameters mismatch", this, other);
+                }
+                if (thisContextVars.size() > 1| otherContextVars.size() > 1) {
+                    throw new SequentUnificationException("cannot unify multiple contexts", this, other);
+                }
+                if (!thisBoundParams.keySet().containsAll(otherBoundParams.keySet()) && thisContextVars.size() == 0
+                    || !otherBoundParams.keySet().containsAll(thisBoundParams.keySet()) && otherContextVars.size() == 0) {
+                    throw new SequentUnificationException("non-numbered parameters mismatch", this, other);
+                }
+                Map<TypeVar, ExpressionType> result = Map.of();
+                for (int i : thisNumberedParams.keySet()) {
+                    result = ExpressionType.mergeUnification(result, thisNumberedParams.get(i).type().unify(otherNumberedParams.get(i).type(), scope), scope);
+                }
+                Set<String> intersection = thisBoundParams.keySet().stream().filter(otherBoundParams::containsKey).collect(toSet());
+                Map<String, SequentParameter> leftDifference = new HashMap<>(thisBoundParams);
+                otherBoundParams.keySet().forEach(leftDifference::remove);
+                Map<String, SequentParameter> rightDifference = new HashMap<>(otherBoundParams);
+                thisBoundParams.keySet().forEach(rightDifference::remove);
+                Map<String, SequentParameter> xor = new HashMap<>();
+                /*System.err.println("this: " + this.toGentzen());
+                System.err.println("other: " + other.toGentzen());
+                System.err.println("thisContextVars: " + thisContextVars);
+                System.err.println("otherContextVars: " + otherContextVars);
+                System.err.println("thisBoundParams: " + thisBoundParams);
+                System.err.println("otherBoundParams: " + otherBoundParams);
+                System.err.println("intersection: " + intersection);
+                System.err.println("leftDifference: " + leftDifference);
+                System.err.println("rightDifference: " + rightDifference);*/
+                if (thisContextVars.size() > 0 && thisContextVars.equals(otherContextVars)) {
+                    xor.putAll(leftDifference);
+                    for (var entry : rightDifference.entrySet()) {
+                        if (xor.containsKey(entry.getKey())) {
+                            throw new RuntimeException("context var unification not implemented");
+                        }
+                        xor.put(entry.getKey(), entry.getValue());
+                    }
+                    for (var key : xor.keySet()) {
+                        if (thisBoundParams.containsKey(key) || otherBoundParams.containsKey(key)) {
+                            throw new SequentUnificationException("cannot unify context variables", this, other);
+                        }
+                    }
+                }
+                //System.err.println("xor: " + xor);
+                for (String key : intersection) {
+                    result = ExpressionType.mergeUnification(result, thisBoundParams.get(key).type().unify(otherBoundParams.get(key).type(), scope), scope);
+                }
+                ans = ans.mergeWith(new SequentUnificationResult(
+                    result,
+                    otherContextVars.size() > 0 && thisContextVars.size() > 0 ? (
+                        thisContextVars.get(0).equals(otherContextVars.get(0))
+                        ? Map.of(thisContextVars.get(0), xor)
+                        : Map.of(thisContextVars.get(0), rightDifference, otherContextVars.get(0), leftDifference)
+                    ) :
+                    otherContextVars.size() > 0 ? Map.of(otherContextVars.get(0), leftDifference) :
+                    thisContextVars.size() > 0 ? Map.of(thisContextVars.get(0), rightDifference) :
+                    Map.of()
+                    /*
+                    leftDifference.size() > 0 && rightDifference.size() > 0 ? Map.of(contextVars.get(0), rightDifference, other.contextVars().get(0), leftDifference) :
+                    leftDifference.size() > 0 ? Map.of(other.contextVars().get(0), leftDifference) :
+                    rightDifference.size() > 0 ? Map.of(contextVars.get(0), rightDifference) :
+                    Map.of()*/
+                ), scope);
             }
-            if (contextVars.size() > 1 || other.contextVars().size() > 1) {
-                throw new SequentUnificationException("cannot unify multiple contexts", thisSequent, otherSequent);
+            return ans;
+        }
+        public void kindCheck(Scope scope) throws KindCheckException {
+            for (var param : numberedParams.values()) {
+                param.kindCheck(scope);
             }
-            if (!boundParams.keySet().containsAll(other.boundParams().keySet()) && contextVars.size() == 0
-                || !other.boundParams().keySet().containsAll(boundParams.keySet()) && other.contextVars().size() == 0) {
-                throw new SequentUnificationException("non-numbered parameters mismatch", thisSequent, otherSequent);
+            for (var param : boundParams.values()) {
+                param.kindCheck(scope);
             }
-            Map<TypeVar, ExpressionType> result = Map.of();
-            for (int i : numberedParams().keySet()) {
-                result = ExpressionType.mergeBindings(result, numberedParams.get(i).unify(other.numberedParams().get(i)));
-            }
-            Set<String> intersection = boundParams.keySet().stream().filter(other.boundParams()::containsKey).collect(toSet());
-            Map<String, ExpressionType> leftDifference = new HashMap<>(boundParams);
-            leftDifference.keySet().removeAll(other.boundParams().keySet());
-            Map<String, ExpressionType> rightDifference = new HashMap<>(other.boundParams());
-            rightDifference.keySet().removeAll(boundParams.keySet());
-            for (String key : intersection) {
-                result = ExpressionType.mergeBindings(result, boundParams.get(key).unify(other.boundParams().get(key)));
-            }
-            return new SequentUnificationResult(
-                result,
-                other.contextVars().size() > 0 && contextVars.size() > 0 ? Map.of(contextVars.get(0), rightDifference, other.contextVars().get(0), leftDifference) :
-                other.contextVars().size() > 0 ? Map.of(other.contextVars().get(0), leftDifference) :
-                contextVars.size() > 0 ? Map.of(contextVars.get(0), rightDifference) :
-                Map.of()
-                /*
-                leftDifference.size() > 0 && rightDifference.size() > 0 ? Map.of(contextVars.get(0), rightDifference, other.contextVars().get(0), leftDifference) :
-                leftDifference.size() > 0 ? Map.of(other.contextVars().get(0), leftDifference) :
-                rightDifference.size() > 0 ? Map.of(contextVars.get(0), rightDifference) :
-                Map.of()*/
-            );
         }
     }
 
     public static record SequentUnificationResult(
         Map<TypeVar, ExpressionType> typeUnification,
-        Map<ContextVar, Map<String, ExpressionType>> contextUnification
+        Map<ContextVarParameter, Map<String, SequentParameter>> contextUnification
     ) {
-        SequentUnificationResult mergeWith(SequentUnificationResult other) throws UnificationException {
-            var typeUnification = ExpressionType.mergeBindings(this.typeUnification(), other.typeUnification());
+        SequentUnificationResult mergeWith(SequentUnificationResult other, Scope scope) throws ExpressionTypeUnificationException {
+            var typeUnification = ExpressionType.mergeUnification(this.typeUnification(), other.typeUnification(), scope);
             var contextUnification = new HashMap<>(this.contextUnification());
             for (var entry : other.contextUnification().entrySet()) {
                 var cvar = entry.getKey();
@@ -148,119 +263,12 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
             }
             return new SequentUnificationResult(typeUnification, contextUnification);
         }
-        private static Map<String, ExpressionType> unifyContextVar(Map<String, ExpressionType> v1, Map<String, ExpressionType> v2) {
+        private static Map<String, SequentParameter> unifyContextVar(Map<String, SequentParameter> v1, Map<String, SequentParameter> v2) {
             var result = new HashMap<>(v1);
             for (var entry : v2.entrySet()) {
                 result.compute(entry.getKey(), (k, v) -> v == null ? entry.getValue() : entry.getValue());  // TODO: no unification
             }
             return result;
-        }
-    }
-
-    public static record Sequent(SequentParameters input,SequentParameters output) {
-        public String toGentzen() {
-            return (input.toGentzen() + " |- " + output.toGentzen()).trim();
-        }
-        public Sequent withInstance(int instance) {
-            return new Sequent(input.withInstance(instance), output.withInstance(instance));
-        }
-
-        public Sequent substitute(SequentUnificationResult substitutions) {
-            return new Sequent(input.substitute(substitutions), output.substitute(substitutions));
-        }
-
-        public SequentUnificationResult unify(Sequent other) throws SequentUnificationException, UnificationException {
-            // Implicit negation
-            var thisInputNumberedParams = new HashMap<>(input.numberedParams());
-            var thisOutputNumberedParams = new HashMap<>(output.numberedParams());
-            var otherInputNumberedParams = new HashMap<>(other.input().numberedParams());
-            var otherOutputNumberedParams = new HashMap<>(other.output().numberedParams());
-
-            // (*a ⊢ A, *b) / (*a, ¬A ⊢ *b)  (¬L)
-            // (*a, A ⊢ *b) / (*a ⊢ ¬A, *b)  (¬R)
-            // This is intuitive, because output params are implemented as continuations:
-            // ¬L: Input param that is a continuation is just the same as an output param
-            // ¬R: A becomes Count<Cont<A>> and the whole expression is wrapped in a lambda
-
-            // ¬L this / other
-            for (var i : thisOutputNumberedParams.keySet()) {
-                if (!otherOutputNumberedParams.containsKey(i)
-                    && otherInputNumberedParams.containsKey(i)
-                    && otherInputNumberedParams.get(i) instanceof ExpressionType.Not) {
-                    var type = thisOutputNumberedParams.remove(i);
-                    thisInputNumberedParams.put(i, new ExpressionType.Not(type));
-                }
-            }
-
-            // ¬L other / this
-            for (var i : otherOutputNumberedParams.keySet()) {
-                if (!thisOutputNumberedParams.containsKey(i)
-                    && thisInputNumberedParams.containsKey(i)
-                    && thisInputNumberedParams.get(i) instanceof ExpressionType.Not) {
-                    var type = otherOutputNumberedParams.remove(i);
-                    otherInputNumberedParams.put(i, new ExpressionType.Not(type));
-                }
-            }
-
-            // ¬R this / other
-            for (var i : thisInputNumberedParams.keySet()) {
-                if (!otherInputNumberedParams.containsKey(i)
-                    && otherOutputNumberedParams.containsKey(i)
-                    && otherOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
-                    var type = thisInputNumberedParams.remove(i);
-                    thisOutputNumberedParams.put(i, new ExpressionType.Not(type));
-                }
-            }
-
-            // ¬R other / this
-            for (var i : otherInputNumberedParams.keySet()) {
-                if (!thisInputNumberedParams.containsKey(i)
-                    && thisOutputNumberedParams.containsKey(i)
-                    && thisOutputNumberedParams.get(i) instanceof ExpressionType.Not) {
-                    var type = otherInputNumberedParams.remove(i);
-                    otherOutputNumberedParams.put(i, new ExpressionType.Not(type));
-                }
-            }
-
-            var thisInput = new SequentParameters(thisInputNumberedParams, input.boundParams(), input.contextVars());
-            var thisOutput = new SequentParameters(thisOutputNumberedParams, output.boundParams(), output.contextVars());
-            var otherInput = new SequentParameters(otherInputNumberedParams, other.input().boundParams(), other.input().contextVars());
-            var otherOutput = new SequentParameters(otherOutputNumberedParams, other.output().boundParams(), other.output().contextVars());
-
-            // Normal unification
-            var inputUnification = thisInput.unify(otherInput, this, other);
-            var outputUnification = thisOutput.unify(otherOutput, this, other);
-            return inputUnification.mergeWith(outputUnification);
-        }
-    }
-
-    public static class SequentUnificationException extends Exception {
-        private Sequent sequent1;
-        private Sequent sequent2;
-        public SequentUnificationException(Sequent sequent1, Sequent sequent2) {
-            super("cannot unify " + sequent1.toGentzen() + " and " + sequent2.toGentzen());
-            this.sequent1 = sequent1;
-            this.sequent2 = sequent2;
-        }
-        public SequentUnificationException(String message, Sequent sequent1, Sequent sequent2) {
-            super("cannot unify " + sequent1.toGentzen() + " and " + sequent2.toGentzen() + ": " + message);
-            this.sequent1 = sequent1;
-            this.sequent2 = sequent2;
-        }
-    }
-
-    public static class RuleSignatureUnificationException extends Exception {
-        private RuleSignature rule1;
-        private RuleSignature rule2;
-        public RuleSignatureUnificationException(RuleSignature rule1, RuleSignature rule2) {
-            super("cannot unify " + rule1.toGentzen() + " and " + rule2.toGentzen());
-            this.rule1 = rule1;
-            this.rule2 = rule2;
-        }
-        public RuleSignatureUnificationException(String message, RuleSignature rule1, RuleSignature rule2) {
-            super("cannot unify " + rule1.toGentzen() + " and " + rule2.toGentzen() + ": " + message);
-            this.rule1 = rule1;
-            this.rule2 = rule2;
         }
     }
 }

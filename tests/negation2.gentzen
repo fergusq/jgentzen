@@ -1,0 +1,13 @@
+<- "stdlib";
+<- "iolib";
+
+make_printer : () / ($1(iosys) |- $2(~ |\|), $3(++));
+make_printer = [io, k, done] outbyte io k done;
+
+send_num : () / ($1(|\|), $2(~ |\|) |-);
+send_num = [n, k] init n k;
+
+main : () / ($1(iosys) |- $2(++));
+main = [io, done] ([k] make_printer io k done) + [k] 'A' + [a] send_num a k;
+
+-> main;

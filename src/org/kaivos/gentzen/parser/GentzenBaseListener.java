@@ -4,12 +4,17 @@ package org.kaivos.gentzen.parser;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.kaivos.gentzen.DeclDef;
+import org.kaivos.gentzen.DefinedType;
 import org.kaivos.gentzen.Expression;
 import org.kaivos.gentzen.ExpressionType;
+import org.kaivos.gentzen.Kind;
 import org.kaivos.gentzen.Rule;
 import org.kaivos.gentzen.RuleSignature;
+import org.kaivos.gentzen.TypeAlias;
+import org.kaivos.gentzen.Typeclass;
 import org.kaivos.gentzen.Utils;
 
 
@@ -113,18 +118,6 @@ public class GentzenBaseListener implements GentzenListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSeqParameters(GentzenParser.SeqParametersContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitSeqParameters(GentzenParser.SeqParametersContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterType(GentzenParser.TypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -144,6 +137,30 @@ public class GentzenBaseListener implements GentzenListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitExpression(GentzenParser.ExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterExpressionTermLeft(GentzenParser.ExpressionTermLeftContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitExpressionTermLeft(GentzenParser.ExpressionTermLeftContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterExpressionTermRight(GentzenParser.ExpressionTermRightContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitExpressionTermRight(GentzenParser.ExpressionTermRightContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -204,6 +221,54 @@ public class GentzenBaseListener implements GentzenListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitApplication(GentzenParser.ApplicationContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTypealias(GentzenParser.TypealiasContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTypealias(GentzenParser.TypealiasContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTypeclass(GentzenParser.TypeclassContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTypeclass(GentzenParser.TypeclassContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterKind(GentzenParser.KindContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitKind(GentzenParser.KindContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterCutEliminationRuleDef(GentzenParser.CutEliminationRuleDefContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitCutEliminationRuleDef(GentzenParser.CutEliminationRuleDefContext ctx) { }
 
 	/**
 	 * {@inheritDoc}
