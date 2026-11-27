@@ -1,0 +1,28 @@
+<- "stdlib";
+<- "iolib";
+
+{
+    box [t];
+
+    put : () / ($1(t) |- $2(box t));
+    get : () / ($1(box t) |- $2(t));
+    map : ($1(t), *a |- $2(t), *b) / ($1(box t), *a |- $2(box t));
+
+    put $2 get $1 = init;
+    map $2 get $1 = [f / a, b] cut ([o] get a o) [o] f o b;
+
+    -> put get map ?box;
+};
+
+outbox : () / ($1(iosys), $2(box string) |- $3(++));
+outbox = [io, box, done]
+    cut ([x] get box x) [s] outtext io s done;
+
+main : () / ($1(iosys) |- $2(++));
+main = [io, done]
+    cut "Hello world!" [s]
+    cut ([b] put s b) [b]
+    cut ([b2] map b b2 [x, y] cut '?' [q] cons q x y) [b]
+    outbox io b done;
+
+-> put get map ?box outbox main;

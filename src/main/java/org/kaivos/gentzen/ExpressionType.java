@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import java.util.stream.Stream;
 
@@ -24,7 +22,8 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
     }
 
     Set<TypeVar> getTypeVars();
-    ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions);
+    ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions);
+    ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions);
 
     Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException;
     Kind kindCheck(Scope scope) throws KindCheckException;
@@ -85,12 +84,16 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Set.of(this);
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             if (substitutions.containsKey(this)) {
                 return substitutions.get(this);
             } else {
                 return this;
             }
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return this;
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -129,8 +132,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return type.getTypeVars();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new Not(type.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Not(type.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -165,8 +172,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Stream.concat(left.getTypeVars().stream(), right.getTypeVars().stream()).collect(toSet());
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new And(left.substitute(substitutions), right.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new And(left.substituteTypeParams(substitutions), right.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -202,8 +213,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Stream.concat(left.getTypeVars().stream(), right.getTypeVars().stream()).collect(toSet());
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new Or(left.substitute(substitutions), right.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Or(left.substituteTypeParams(substitutions), right.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -239,8 +254,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return type.getTypeVars();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new Maybe(type.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Maybe(type.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -271,7 +290,11 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Set.of();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
             return this;
         }
         @Override
@@ -302,7 +325,11 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Set.of();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
             return this;
         }
         @Override
@@ -333,7 +360,11 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Set.of();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
             return this;
         }
         @Override
@@ -368,8 +399,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return type.getTypeVars();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new List(type.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new List(type.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -404,8 +439,12 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return type.getTypeVars();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
             return new Box(type.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Box(type.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
@@ -436,7 +475,11 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             return Set.of();
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
             return this;
         }
         @Override
@@ -457,10 +500,14 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         }
     }
 
-    public record CustomType(String name, java.util.List<ExpressionType> args) implements ExpressionType {
+    public sealed interface PossibleCustomType permits Apply, CustomType {
+        boolean isCustomType(String name);
+    }
+
+    public record Apply(ExpressionType highOrderType, ExpressionType arg) implements ExpressionType, PossibleCustomType {
         @Override
         public String toGentzen() {
-            return Stream.concat(Stream.of(name), args.stream().map(ExpressionType::toParensGentzen)).collect(joining(" "));
+            return highOrderType.toParensGentzen() + " " + arg.toParensGentzen();
         }
         @Override
         public String toParensGentzen() {
@@ -468,73 +515,169 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
         }
         @Override
         public Set<TypeVar> getTypeVars() {
-            return args.stream().flatMap(t -> t.getTypeVars().stream()).collect(toSet());
+            return Stream.concat(highOrderType.getTypeVars().stream(), arg.getTypeVars().stream()).collect(toSet());
         }
         @Override
-        public ExpressionType substitute(Map<TypeVar, ExpressionType> substitutions) {
-            return new CustomType(name, args.stream().map(t -> t.substitute(substitutions)).collect(toList()));
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return new Apply(highOrderType.substitute(substitutions), arg.substitute(substitutions));
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Apply(highOrderType.substituteTypeParams(substitutions), arg.substituteTypeParams(substitutions));
         }
         @Override
         public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
-            if (other instanceof CustomType t && name.equals(t.name) && args.size() == t.args().size()) {
-                if (args.size() == 0) {
-                    return Map.of();
+            if (other instanceof Apply a) {
+                var thisAliasApplied = applyAlias(scope);
+                var otherAliasApplied = applyAlias(scope);
+                if (thisAliasApplied.isPresent() && otherAliasApplied.isPresent()) {
+                    try {
+                        return thisAliasApplied.get().unify(other, scope);
+                    } catch (ExpressionTypeUnificationException _) {
+                        return thisAliasApplied.get().unify(otherAliasApplied.get(), scope);
+                    }
+                } else if (thisAliasApplied.isPresent()) {
+                    return thisAliasApplied.get().unify(other, scope);
+                } else if (otherAliasApplied.isPresent()) {
+                    return this.unify(otherAliasApplied.get(), scope);
                 } else {
-                    var bindings = args.get(0).unify(t.args().get(0), scope);
-                    for (var i = 1; i < args.size(); i++) {
-                        bindings = mergeUnification(bindings, args.get(i).unify(t.args().get(i), scope), scope);
-                    }
-                    return bindings;
+                    var substitutionsHot = highOrderType.unify(a.highOrderType, scope);
+                    var substitutionsArg = arg.unify(a.arg, scope);
+                    return mergeUnification(substitutionsHot, substitutionsArg, scope);
                 }
-            }
-
-            var resolvedType = scope.resolveType(name);
-            var args = this.args;
-            while (resolvedType.isPresent()) {
-                var rt = resolvedType.get();
-                var expectedParams = rt.getParams();
-                if (rt instanceof TypeAlias alias) {
-                    if (alias.body().isPresent()) {
-                        if (expectedParams.size() <= args.size()) {
-                            // The type alias has enough params, add them to the scope and unify with the new type
-                            var newAliases = new HashMap<String, DefinedType>();
-                            for (var i = 0; i < expectedParams.size(); i++) {
-                                var param = (DefinedType.TypeParam.ParamWithKind) expectedParams.get(i);
-                                var arg = args.get(i);
-                                newAliases.put(param.name(), new TypeAlias.AliasParam(param.name(), param.kind(), Optional.of(arg)));
-                            }
-                            scope = new Scope(scope, Map.of(), newAliases, Map.of());
-                            if (alias.body().get() instanceof CustomType(var bodyName, var bodyArgs)) {
-                                var newBodyArgs = new ArrayList<>(bodyArgs);
-                                resolvedType = scope.resolveType(bodyName);
-                                for (var i = expectedParams.size(); i < args.size(); i++) {
-                                    newBodyArgs.add(args.get(i));
-                                }
-                                args = newBodyArgs;
-                                continue;
-                            } else {
-                                return alias.body().get().unify(other, scope);
-                            }
-                        } else {
-                            throw new ExpressionTypeUnificationException(this, other);
-                        }
-                    } else {
-                        if (expectedParams.size() != args.size()) {
-                            throw new ExpressionTypeUnificationException(this, other);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                break;
-            }
-
-            if (other instanceof TypeVar tv) {
-                return tv.unify(this, scope);
-            } else if (other instanceof CustomType ct) {
-                return ct.unify(this, scope);
             } else {
-                throw new ExpressionTypeUnificationException(this, other);
+                var aliasApplied = applyAlias(scope);
+                if (aliasApplied.isPresent()) {
+                    return aliasApplied.get().unify(other, scope);
+                } else if (other instanceof TypeVar tv) {
+                    return tv.unify(this, scope);
+                } else if (other instanceof CustomType ct) {
+                    return ct.unify(this, scope);
+                } else {
+                    throw new ExpressionTypeUnificationException(this, other);
+                }
+            }
+        }
+        private static record FullApplication(ExpressionType highOrderType, java.util.List<ExpressionType> args) {}
+        private FullApplication getFullApplication() {
+            var args = new ArrayList<ExpressionType>();
+            ExpressionType type = this;
+            while (type instanceof Apply a) {
+                type = a.highOrderType;
+                args.addFirst(a.arg);
+            }
+            return new FullApplication(type, args);
+        }
+        private Optional<ExpressionType> applyAlias(Scope scope) {
+            var thisFull = getFullApplication();
+            if (thisFull.highOrderType instanceof CustomType ct) {
+                var resolvedType = scope.resolveType(ct.name);
+                if (resolvedType.isPresent() && resolvedType.get() instanceof TypeAlias alias) {
+                    if (alias.params().size() <= thisFull.args().size() && alias.body().isPresent()) {
+                        Map<String, ExpressionType> subs = new HashMap<>();
+                        for (var i = 0; i < alias.params().size(); i++) {
+                            subs.put(alias.params().get(i), thisFull.args().get(i));
+                        }
+                        var appliedType = alias.body().get().substituteTypeParams(subs);
+                        for (var i = alias.params().size(); i < thisFull.args().size(); i++) {
+                            appliedType = new Apply(appliedType, thisFull.args().get(i));
+                        }
+                        return Optional.of(appliedType);
+                    }
+                }
+            }
+            return Optional.empty();
+        }
+        @Override
+        public Kind kindCheck(Scope scope) throws KindCheckException {
+            var hotKind = highOrderType.kindCheck(scope);
+            switch (hotKind) {
+                case Kind.RuleKind(var _) -> {
+                    throw new KindCheckException("rule parameters are not supported yet");
+                }
+                case Kind.TypeKind(var subkinds) -> {
+                    if (subkinds.size() == 0) {
+                        throw new KindCheckException("high order type " + highOrderType.toGentzen() + " received too many arguments");
+                    } else {
+                        var argKind = arg.kindCheck(scope);
+                        var paramKind = subkinds.get(0);
+                        if (!argKind.equals(paramKind)) {
+                            throw new KindCheckException(
+                                "high order type " + highOrderType.toGentzen()
+                                + " received an invalid type argument: expected kind "
+                                + paramKind.toKindNotation() + ", got " + argKind.toKindNotation()
+                            );
+                        }
+                        return new Kind.TypeKind(subkinds.subList(1, subkinds.size()));
+                    }
+                }
+            }
+        }
+        @Override
+        public boolean isCustomType(String name) {
+            return highOrderType instanceof PossibleCustomType pct && pct.isCustomType(name);
+        }
+    }
+
+    public record CustomType(String name) implements ExpressionType, PossibleCustomType {
+        @Override
+        public String toGentzen() {
+            return name;
+        }
+        @Override
+        public String toParensGentzen() {
+            return name;
+        }
+        @Override
+        public Set<TypeVar> getTypeVars() {
+            return Set.of();
+        }
+        @Override
+        public ExpressionType substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+        @Override
+        public ExpressionType substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return substitutions.containsKey(name) ? substitutions.get(name) : this;
+        }
+        @Override
+        public Map<TypeVar, ExpressionType> unify(ExpressionType other, Scope scope) throws ExpressionTypeUnificationException {
+            if (other instanceof CustomType ct) {
+                if (this.name.equals(ct.name())) {
+                    return Map.of();
+                }
+                var thisAliasApplied = applyAlias(scope);
+                var otherAliasApplied = ct.applyAlias(scope);
+                if (thisAliasApplied.isPresent() && otherAliasApplied.isPresent()) {
+                    try {
+                        return thisAliasApplied.get().unify(other, scope);
+                    } catch (ExpressionTypeUnificationException _) {
+                        return thisAliasApplied.get().unify(otherAliasApplied.get(), scope);
+                    }
+                } else if (thisAliasApplied.isPresent()) {
+                    return thisAliasApplied.get().unify(other, scope);
+                } else if (otherAliasApplied.isPresent()) {
+                    return this.unify(otherAliasApplied.get(), scope);
+                } else {
+                    throw new ExpressionTypeUnificationException(this, other);
+                }
+            } else {
+                var aliasApplied = applyAlias(scope);
+                if (aliasApplied.isPresent()) {
+                    return aliasApplied.get().unify(other, scope);
+                } else if (other instanceof TypeVar tv) {
+                    return tv.unify(this, scope);
+                } else {
+                    throw new ExpressionTypeUnificationException(this, other);
+                }
+            }
+        }
+        private Optional<ExpressionType> applyAlias(Scope scope) {
+            var resolvedType = scope.resolveType(name);
+            if (resolvedType.isPresent() && resolvedType.get() instanceof TypeAlias alias && alias.getParams().size() == 0) {
+                return alias.body();
+            } else {
+                return Optional.empty();
             }
         }
         @Override
@@ -545,52 +688,27 @@ public sealed interface ExpressionType extends Type, HasTypeVars<ExpressionType>
             }
 
             var rt = resolvedType.get();
-            var expectedParams = rt.getParams();
-
-            for (var i = 0; i < Math.min(args.size(), expectedParams.size()); i++) {
-                var arg = args.get(i);
-                var argKind = arg.kindCheck(scope);
-                var param = expectedParams.get(i);
-                switch (param) {
-                    case DefinedType.TypeParam.ParamWithKind(var paramName, var paramKind) -> {
-                        if (!argKind.equals(paramKind)) {
-                            throw new KindCheckException(
-                                "type parameter " + paramName + " of " + name
-                                + " expected argument of kind " + paramKind.toKindNotation()
-                                + ", got " + argKind.toKindNotation()
-                            );
-                        }
-                    }
-                    case DefinedType.TypeParam.ValueParam _ -> {
-                        throw new KindCheckException("value parameters are current unsupported");
-                    }
-                }
-            }
-
-            if (expectedParams.size() >= args.size()) {
-                var params = new ArrayList<Kind>();
-                var result = new Kind.TypeKind(params);
-                for (var i = args.size(); i < expectedParams.size(); i++) {
-                    var param = expectedParams.get(i);
-                    switch (param) {
-                        case DefinedType.TypeParam.ParamWithKind(var _, var paramKind) -> {
-                            params.addFirst(paramKind);
-                        }
-                        case DefinedType.TypeParam.ValueParam(var paramName, var _) -> {
-                            throw new KindCheckException("missing argument for value parameter " + paramName + " of " + name);
-                        }
-                    }
-                }
-                return result;
-            } else if (rt instanceof Typeclass) {
-                throw new KindCheckException("typeclass " + name + " received too many type arguments: expected " + expectedParams.size() + ", got " + args.size());
-            } else if (rt instanceof TypeAlias) {
-                throw new KindCheckException("type alias " + name + " received too many type arguments: expected " + expectedParams.size() + ", got " + args.size());
-            } else if (rt instanceof TypeAlias.AliasParam) {
-                throw new KindCheckException("type alias " + name + " received too many type arguments: expected " + expectedParams.size() + ", got " + args.size());
-            } else {
+            var params = rt.getParams();
+            if (params.size() == 0) {
                 return Kind.CONCRETE;
             }
+
+            var subkinds = new ArrayList<Kind>();
+            for (var param : params) {
+                switch (param) {
+                    case DefinedType.TypeParam.ValueParam(var _, var _) -> {
+                        throw new KindCheckException("value parameters are not yet supported");
+                    }
+                    case DefinedType.TypeParam.ParamWithKind(var _, var kind) -> {
+                        subkinds.add(kind);
+                    }
+                }
+            }
+            return new Kind.TypeKind(subkinds);
+        }
+        @Override
+        public boolean isCustomType(String name) {
+            return this.name.equals(name);
         }
     }
 }

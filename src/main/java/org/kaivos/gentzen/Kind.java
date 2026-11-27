@@ -17,7 +17,7 @@ public sealed interface Kind {
     ) throws KindCheckException {
         if (!equals(CONCRETE)) {
             throw new KindCheckException(
-                message + ": expected concrete type, got " + toGentzen()
+                message + ": expected concrete type, got " + toKindNotation()
             );
         }
     }
@@ -27,7 +27,7 @@ public sealed interface Kind {
         public String toGentzen() {
             return subkinds
                 .stream()
-                .map(k -> "(" + k + ")")
+                .map(k -> "(" + k.toGentzen() + ")")
                 .collect(joining(" "));
         }
 

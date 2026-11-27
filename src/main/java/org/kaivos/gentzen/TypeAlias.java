@@ -12,6 +12,10 @@ public record TypeAlias(
 ) implements DefinedType {
     public record AliasParam(String name, Kind kind, Optional<ExpressionType> body) implements DefinedType {
         @Override
+        public String getName() {
+            return name;
+        }
+        @Override
         public List<TypeParam> getParams() {
             return switch (kind) {
                 case Kind.TypeKind(var subkinds) -> {
@@ -22,6 +26,10 @@ public record TypeAlias(
                 }
             };
         }
+    }
+    @Override
+    public String getName() {
+        return name;
     }
     @Override
     public List<TypeParam> getParams() {

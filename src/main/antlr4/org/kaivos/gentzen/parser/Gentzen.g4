@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.kaivos.gentzen.DeclDef;
 import org.kaivos.gentzen.DefinedType;
+import org.kaivos.gentzen.ExportType;
 import org.kaivos.gentzen.Expression;
 import org.kaivos.gentzen.ExpressionType;
 import org.kaivos.gentzen.Kind;
@@ -34,10 +35,10 @@ importDecl returns [DeclDef.ImportDecl d] :
     {$d = new DeclDef.ImportDecl(Utils.parseString($STRING.text), $start, $stop);};
 
 exportDecl returns [DeclDef.ExportDecl d]
-    locals [ArrayList<String> names = new ArrayList<>()]
-    @after {$d = new DeclDef.ExportDecl($names, $start, $stop);}
+    locals [HashMap<String, ExportType> exports = new HashMap<>()]
+    @after {$d = new DeclDef.ExportDecl($exports, $start, $stop);}
     :
-    '->' (IDENT {$names.add($IDENT.text);})* ';'
+    '->' exportList {$exports = $exportList.exports;} ';'
     ;
 
 ruleDecl returns [DeclDef.RuleDeclaration r, String name, RuleSignature rs]
@@ -89,20 +90,30 @@ sequent returns [RuleSignature.Sequent seq] :
     {$seq = new RuleSignature.Sequent(parameters, Map.of(), contextVars);};
 
 type returns [ExpressionType typ] :
-    '(' type ')' {$typ = $type.typ;}
-    | '?' IDENT {$typ = new ExpressionType.TypeVar($IDENT.text, 0);}
-    | '~' type {$typ = new ExpressionType.Not($type.typ);}
+    unaryType {$typ = $unaryType.typ;}
     | left=type '/\\' right=type {$typ = new ExpressionType.And($left.typ, $right.typ);}
     | left=type '\\/' right=type {$typ = new ExpressionType.Or($left.typ, $right.typ);}
+    ;
+
+unaryType returns [ExpressionType typ] :
+    simpleType {$typ = $simpleType.typ;} (simpleType {$typ = new ExpressionType.Apply($typ, $simpleType.typ);})* (builtinUnaryType {$typ = new ExpressionType.Apply($typ, $simpleType.typ);})?
+    | builtinUnaryType {$typ = $builtinUnaryType.typ;};
+
+builtinUnaryType returns [ExpressionType typ] :
+    '~' type {$typ = new ExpressionType.Not($type.typ);}
     | '@' type {$typ = new ExpressionType.Maybe($type.typ);}
+    | '..' type {$typ = new ExpressionType.List($type.typ);}
+    | '[]' type {$typ = new ExpressionType.Box($type.typ);}
+    | '<>' type {$typ = new ExpressionType.Not(new ExpressionType.Box(new ExpressionType.Not($type.typ)));};
+
+simpleType returns [ExpressionType typ] :
+    '(' type ')' {$typ = $type.typ;}
     | '|\\|' {$typ = new ExpressionType.Nat();}
     | '++' {$typ = new ExpressionType.Unit();}
     | '_|_' {$typ = new ExpressionType.Bottom();}
-    | '..' type {$typ = new ExpressionType.List($type.typ);}
-    | '[]' type {$typ = new ExpressionType.Box($type.typ);}
-    | '<>' type {$typ = new ExpressionType.Not(new ExpressionType.Box(new ExpressionType.Not($type.typ)));}
     | '!' IDENT {$typ = new ExpressionType.Atomic($IDENT.text);}
-    | name=IDENT {ArrayList<ExpressionType> typeArgs = new ArrayList<>();} (type {typeArgs.add($type.typ);})* {$typ = new ExpressionType.CustomType($name.text, typeArgs);};
+    | name=IDENT {$typ = new ExpressionType.CustomType($name.text);}
+    | '?' IDENT {$typ = new ExpressionType.TypeVar($IDENT.text, 0);};
 
 expression returns [Expression expr = null] :
     (expressionTermLeft '+' {$expr = $expressionTermLeft.expr;})?
@@ -126,12 +137,25 @@ expressionArg returns [Expression expr] :
     | '(' expression ')' {$expr = $expression.expr;};
 
 arule returns [Expression ar] :
-    open='[' below=identlist ']' body=expression {$ar = new Expression.AnonymousRule(List.of(), $below.list, $body.expr, $open, $body.stop);}
-    | open='[' above=identlist '/' below=identlist ']' body=expression {$ar = new Expression.AnonymousRule($above.list, $below.list, $body.expr, $open, $body.stop);};
+    open='[' below=identlist ']' body=aruleBody {$ar = new Expression.AnonymousRule(List.of(), $below.list, $body.expr, $open, $body.stop);}
+    | open='[' above=identlist '/' below=identlist ']' body=aruleBody {$ar = new Expression.AnonymousRule($above.list, $below.list, $body.expr, $open, $body.stop);};
 
 identlist returns [ArrayList<String> list] :
     {$list = new ArrayList<>();}
-    IDENT {$list.add($IDENT.text);} (',' IDENT {$list.add($IDENT.text);})*;
+    (
+    IDENT {$list.add($IDENT.text);} (',' IDENT {$list.add($IDENT.text);})*
+    |
+    )
+    ;
+
+aruleBody returns [Expression expr] :
+    application {$expr = $application.app;}
+    |
+    left=expressionTermLeft
+    '+'
+    right=expressionTermRight
+    {$expr = new Expression.Application("cut", List.of($left.expr, $right.expr), $left.start, $right.stop);}
+    ;
 
 symbol returns [Expression sym] :
     IDENT {$sym = new Expression.Symbol($IDENT.text, $IDENT, $IDENT);};
@@ -165,9 +189,10 @@ typeclass returns [DeclDef.TypeclassDecl tc]
     locals [
         ArrayList<DefinedType.TypeParam> params = new ArrayList<>(),
         HashMap<String, RuleSignature> rs = new HashMap<>(),
-        ArrayList<Typeclass.CutEliminationRule> cers = new ArrayList<>()
+        ArrayList<Typeclass.CutEliminationRule> cers = new ArrayList<>(),
+        HashMap<String, ExportType> exports = new HashMap<>()
     ]
-    @after {$tc = new DeclDef.TypeclassDecl(new Typeclass($name.text, $params, $rs, $cers), $start, $stop);}
+    @after {$tc = new DeclDef.TypeclassDecl(new Typeclass($name.text, $params, $rs, $cers, $exports), $start, $stop);}
     :
     '{'
     name=IDENT
@@ -180,8 +205,21 @@ typeclass returns [DeclDef.TypeclassDecl tc]
     ruleDecl {$rs.put($ruleDecl.name, $ruleDecl.rs);}
     | cutEliminationRuleDef {$cers.add($cutEliminationRuleDef.cer);}
     )*
-    '->' (IDENT | '&' IDENT | '%' IDENT | '?' IDENT)* ';'
+    '->'
+    exportList {$exports = $exportList.exports;}
+    ';'
     '}'
+    ';'
+    ;
+
+exportList returns [HashMap<String, ExportType> exports] :
+    {$exports = new HashMap<>();}
+    (
+    IDENT {$exports.put($IDENT.text, ExportType.PUBLIC);}
+    | '&' IDENT {$exports.put($IDENT.text, ExportType.PRIMARY);}
+    | '%' IDENT {$exports.put($IDENT.text, ExportType.SECONDARY);}
+    | '?' IDENT {$exports.put($IDENT.text, ExportType.OPAQUE);}
+    )*
     ;
 
 kind returns [Kind knd] :

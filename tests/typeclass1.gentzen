@@ -1,0 +1,29 @@
+<- "stdlib";
+<- "iolib";
+
+{
+  boolean;
+  no : () / (|- $1(boolean));
+  yes : () / (|- $1(boolean));
+  test : (*a |- *b; *a |- *b) / (*a, $1(boolean) |- *b);
+  no $1 test $1 = [x, _ /] x;
+  yes $1 test $1 = [_, x /] x;
+  -> no yes test ?boolean;
+};
+
+say_yes : () / ($1(iosys) |- $2(++));
+say_yes = [io, done]
+    cut "YES" [z]
+    outtext io z done;
+
+say_no : () / ($1(iosys) |- $2(++));
+say_no = [io, done]
+    cut "NO" [z]
+    outtext io z done;
+
+main : () / ($1(iosys) |- $2(++));
+main = [io, done]
+    cut yes [b]
+    test b (say_no io done) (say_yes io done);
+
+-> main no yes test boolean;

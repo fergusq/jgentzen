@@ -7,7 +7,8 @@ public record Typeclass(
     String name,
     List<TypeParam> params,
     Map<String, RuleSignature> classRules,
-    List<CutEliminationRule> cutEliminationRules
+    List<CutEliminationRule> cutEliminationRules,
+    Map<String, ExportType> exports
 ) implements DefinedType {
     public record CutEliminationRule(
         String primaryRule,
@@ -15,10 +16,23 @@ public record Typeclass(
         String secondaryRule,
         int secondaryArg,
         Expression body
-    ) {}
+    ) {
+        public String nameToGentzen() {
+            return primaryRule + " $" + primaryArg + " " + secondaryRule + " $" + secondaryArg();
+        }
 
-	@Override
-	public List<TypeParam> getParams() {
-		return params;
-	}
+        public String toGentzen() {
+            return nameToGentzen() + " = " + body.toGentzen() + ";";
+        }
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public List<TypeParam> getParams() {
+        return params;
+    }
 }

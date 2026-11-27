@@ -51,6 +51,18 @@ public class Scope {
         }
     }
 
+    public Map<String, RuleSignature> getDefinedRules() {
+        return definedRules;
+    }
+
+    public Map<String, DefinedType> getDefinedTypes() {
+        return definedTypes;
+    }
+
+    public Map<String, ExpressionType> getBoundVariables() {
+        return boundVariables;
+    }
+
     @Override
     public String toString() {
         return "Scope[parent=" + parent + ", definedRules=" + definedRules + ", definedTypes" + definedTypes + ", boundVariables=" + boundVariables + "]";

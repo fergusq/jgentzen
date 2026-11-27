@@ -1,19 +1,29 @@
+string := .. |\|;
+
 left/and : ($1(?x), *a |- *b) / ($1(?x /\ ?_), *a |- *b);
 right/and : ($1(?x), *a |- *b) / ($1(?_ /\ ?x), *a |- *b);
 split/and : (*a |- $1(?x), *b; *a |- $1(?y), *b) / (*a |- $1(?x /\ ?y), *b);
+
 left/or : (*a |- $1(?x), *b) / (*a |- $1(?x \/ ?_), *b);
 right/or : (*a |- $1(?x), *b) / (*a |- $1(?_ \/ ?x), *b);
 split/or : ($1(?x), *a |- *b; $1(?y), *a |- *b) / ($1(?x \/ ?y), *a |- *b);
+
 cut : (*a |- *b, $1(?x); *c, $1(?x) |- *d) / (*a, *c |- *b, *d);
 init : () / ($1(?x) |- $2(?x));
+
 true : () / (|- $1(++));
 false : () / ($1(_|_) |-);
+
 succ : () / ($1(|\|) |- $2(|\|));
+
 count : ($1(?x), *a |- $2(?x), *b) / ($1(|\|), $2(?x), *a |- $3(?x), *b);
 loop : ($1(?x), *a |- $2(?x), $3(?y)) / ($1(?x), *a |- $2(@ ?y));
 lcopy : ($1(?x), *a |- $2(?y), *b) / ($1(@ ?x), *a |- $2(@ ?y), *b);
+
 nil : () / (|- $1(.. ?_));
 cons : () / ($1(?a), $2(.. ?a) |- $3(.. ?a));
 fold : ($1(?x), $2(?y), *a |- $3(?y), *b) / ($1(.. ?x), $2(?y), *a |- $3(?y), *b);
+
 cmp : (*a |- *b; *a |- *b; *a |- *b) / ($1(|\|), $2(|\|), *a |- *b);
+
 -> left/and right/and split/and left/or right/or split/or cut init true false succ count loop lcopy nil cons fold cmp;

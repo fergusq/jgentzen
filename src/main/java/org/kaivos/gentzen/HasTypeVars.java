@@ -11,8 +11,9 @@ import java.util.stream.Stream;
 public interface HasTypeVars<T> {
     public T withInstance(int instance);
     public T substitute(
-        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+        Map<ExpressionType.TypeVar, ? extends ExpressionType> substitutions
     );
+    public T substituteTypeParams(Map<String, ? extends ExpressionType> substitutions);
 
     public static <K, T extends HasTypeVars<? extends T>> Map<
         K,
@@ -49,7 +50,7 @@ public interface HasTypeVars<T> {
         T
     > mapSubstitute(
         Map<K, T> map,
-        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+        Map<ExpressionType.TypeVar, ? extends ExpressionType> substitutions
     ) {
         return map
             .entrySet()
@@ -62,7 +63,7 @@ public interface HasTypeVars<T> {
 
     public static <T extends HasTypeVars<? extends T>> List<T> listSubstitute(
         Collection<T> list,
-        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+        Map<ExpressionType.TypeVar, ? extends ExpressionType> substitutions
     ) {
         return list
             .stream()
@@ -72,8 +73,41 @@ public interface HasTypeVars<T> {
 
     public static <T extends HasTypeVars<? extends T>> Stream<T> streamSubstitute(
         Collection<T> list,
-        Map<ExpressionType.TypeVar, ExpressionType> substitutions
+        Map<ExpressionType.TypeVar, ? extends ExpressionType> substitutions
     ) {
         return list.stream().map(i -> i.substitute(substitutions));
+    }
+
+    public static <K, T extends HasTypeVars<? extends T>> Map<
+        K,
+        T
+    > mapSubstituteTypeParams(
+        Map<K, T> map,
+        Map<String, ? extends ExpressionType> substitutions
+    ) {
+        return map
+            .entrySet()
+            .stream()
+            .map(e ->
+                Map.entry(e.getKey(), e.getValue().substituteTypeParams(substitutions))
+            )
+            .collect(fromEntries());
+    }
+
+    public static <T extends HasTypeVars<? extends T>> List<T> listSubstituteTypeParams(
+        Collection<T> list,
+        Map<String, ? extends ExpressionType> substitutions
+    ) {
+        return list
+            .stream()
+            .map(i -> i.substituteTypeParams(substitutions))
+            .collect(toList());
+    }
+
+    public static <T extends HasTypeVars<? extends T>> Stream<T> streamSubstituteTypeParams(
+        Collection<T> list,
+        Map<String, ? extends ExpressionType> substitutions
+    ) {
+        return list.stream().map(i -> i.substituteTypeParams(substitutions));
     }
 }

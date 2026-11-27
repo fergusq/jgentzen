@@ -1,6 +1,6 @@
 package org.kaivos.gentzen;
 
-import java.util.List;
+import java.util.Map;
 
 import org.antlr.v4.runtime.Token;
 import org.kaivos.gentzen.Namespace.DeclarationException;
@@ -15,8 +15,8 @@ public sealed interface DeclDef {
     public record RuleDeclaration(String name, RuleSignature signature, Token start, Token stop) implements DeclDef {
         @Override
         public void register(Namespace namespace) throws DeclarationException, CompilationException {
-            System.out.println(name + " : " + signature.toGentzen());
-            namespace.addRuleDecl(new Rule(name, signature, start, stop));
+            //System.out.println(name + " : " + signature.toGentzen());
+            namespace.addRuleDecl(this);
         }
         @Override
         public Token getStart() {
@@ -31,7 +31,7 @@ public sealed interface DeclDef {
     public record RuleDefinition(String name, Expression body, Token start, Token stop) implements DeclDef {
         @Override
         public void register(Namespace namespace) throws DeclarationException, CompilationException {
-            System.out.println(name + " = " + body.toGentzen());
+            //System.out.println(name + " = " + body.toGentzen());
             namespace.addRuleDef(name, body);
         }
         @Override
@@ -59,10 +59,10 @@ public sealed interface DeclDef {
         }
     }
 
-    public record ExportDecl(List<String> names, Token start, Token stop) implements DeclDef {
+    public record ExportDecl(Map<String, ExportType> names, Token start, Token stop) implements DeclDef {
         @Override
         public void register(Namespace namespace) throws DeclarationException, CompilationException {
-            // TODO
+            namespace.addExports(names);
         }
         @Override
         public Token getStart() {
@@ -77,7 +77,7 @@ public sealed interface DeclDef {
     public record TypeclassDecl(Typeclass typeclass, Token start, Token stop) implements DeclDef {
         @Override
         public void register(Namespace namespace) throws DeclarationException, CompilationException {
-            // TODO
+            namespace.addTypeclass(this);
         }
         @Override
         public Token getStart() {
@@ -92,7 +92,7 @@ public sealed interface DeclDef {
     public record TypeAliasDecl(TypeAlias alias, Token start, Token stop) implements DeclDef {
         @Override
         public void register(Namespace namespace) throws DeclarationException, CompilationException {
-            namespace.addTypeAlias(alias.name(), alias);
+            namespace.addTypeAlias(this);
         }
         @Override
         public Token getStart() {

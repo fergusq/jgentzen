@@ -115,7 +115,8 @@ public sealed interface Expression {
                 }
                 HashMap<String, ExpressionType> boundVariables = new HashMap<>();
                 var numberedParams = new HashMap<>(rs.below().numberedParams());
-                var boundParams = new HashMap<>(rs.below().boundParams());
+                if (rs.below().boundParams().size() != 0) throw new RuntimeException();
+                var boundParams = new HashMap<>(rs.below().boundParams()); // should be empty
                 var ignoredParams = new HashMap<String, SequentParameter>();
                 var contextVars = rs.below().contextVars();
                 for (int i = 0; i < params.size(); i++) {
@@ -141,7 +142,8 @@ public sealed interface Expression {
                 );
                 var bodyType = body.typeCheck(subScope, subExpectedType);
                 if (bodyType.type() instanceof RuleSignature bodyRs) {
-                    var newNumberedParams = new HashMap<>(bodyRs.below().numberedParams());
+                    if (bodyRs.below().numberedParams().size() != 0) throw new RuntimeException();
+                    var newNumberedParams = new HashMap<>(bodyRs.below().numberedParams()); // should be empty
                     var newBoundParams = new HashMap<>(bodyRs.below().boundParams());
                     var newContextVars = bodyRs.below().contextVars();
                     for (int i = 0; i < params.size(); i++) {
@@ -258,12 +260,12 @@ public sealed interface Expression {
                 // neces is defined for any number of parameters, so we construct its type here dynamically
                 var necesAboveParams = new HashMap<Integer, SequentParameter>();
                 var necesBelowParams = new HashMap<Integer, SequentParameter>();
-                for (int i = 0; i < args.size()-1; i++) {
+                for (int i = 0; i < args.size()-2; i++) {
                     necesAboveParams.put(i+1, new SequentParameter(new ExpressionType.TypeVar("neces_in_"+i, 0), true));
                     necesBelowParams.put(i+1, new SequentParameter(new ExpressionType.Box(new ExpressionType.TypeVar("neces_in_"+i, 0)), true));
                 };
-                necesAboveParams.put(args.size(), new SequentParameter(new ExpressionType.TypeVar("neces_out", 0), false));
-                necesBelowParams.put(args.size(), new SequentParameter(new ExpressionType.Box(new ExpressionType.TypeVar("neces_out", 0)), false));
+                necesAboveParams.put(args.size()-1, new SequentParameter(new ExpressionType.TypeVar("neces_out", 0), false));
+                necesBelowParams.put(args.size()-1, new SequentParameter(new ExpressionType.Box(new ExpressionType.TypeVar("neces_out", 0)), false));
                 resolved = Optional.of(new RuleSignature(
                     List.of(new RuleSignature.Sequent(necesAboveParams, Map.of(), List.of())),
                     new RuleSignature.Sequent(necesBelowParams, Map.of(), List.of())

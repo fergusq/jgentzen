@@ -1,0 +1,43 @@
+<- "stdlib";
+<- "iolib";
+<- "alias2";
+
+self_nat := ~ (self_nat /\ (nat /\ ~ ++));
+
+notL : (*a |- $1(?x), *b) / ($1(~?x), *a |- *b);
+notL = [f / i] f i;
+
+notR : ($1(?x), *a |- *b) / (*a |- $1(~?x), *b);
+notR = [f / o] f o;
+
+step : () / ($1(self_nat), $2(nat), $3(~ ++) |-);
+step = [meL, n, retL]
+    notL retL [retR]
+    notL meL [meR]
+    split/or n
+        ([_] cut true [u] init u retR)
+        ([m] cut ([p] split/and p
+                        ([o1] init meL o1)
+                        ([o1] make_pair m retL o1))
+                 [triple] init triple meR);
+
+make_self : () / (|- $1(self_nat));
+make_self = [xR]
+    notR xR [x]
+    left/and x [me]
+    right/and x [rest]
+    left/and rest [n]
+    right/and rest [ret]
+    step me n ret;
+
+drain_nat_no_at : (*a |- $1(++), *b) / ($1(nat), *a |- $2(++), *b);
+drain_nat_no_at = [f / n, ret]
+    cut ([k] init k ret)
+        ([k] cut f [_] cut make_self [me] step me n k);
+
+main : () / ($1(iosys) |- $2(++));
+main = [io, done]
+    cut two [t]
+    drain_nat_no_at t done ([out] out_star io out);
+
+-> drain_nat_no_at main;

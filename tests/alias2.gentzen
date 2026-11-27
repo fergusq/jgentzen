@@ -9,18 +9,22 @@ zero = [out] left/or out [u] true u;
 two : () / (|- $1(nat));
 two = [out] right/or out [n1] right/or n1 [n0] zero n0;
 
-make_pair a b == [p] split/and p ([left] init a left) ([right] init b right);
+make_pair : () / ($1(?a), $2(?b) |- $3(?a /\ ?b));
+make_pair = [a, b, pair]
+    split/and pair
+        ([left] init a left)
+        ([right] init b right);
 
 add : () / ($1(nat), $2(nat) |- $3(@ nat));
 add = [a, b, out]
-    cut (make_pair a b) [pair]
+    cut ([o] make_pair a b o) [pair]
     loop pair out [cur, next, done]
     left/and cur [cur_a]
     right/and cur [cur_b]
     split/or cur_a
         ([_] init cur_b done)
         ([pred] cut ([o1] right/or o1 ([o2] init cur_b o2)) [succ]
-                make_pair pred succ [new_pair]
+                cut ([o] make_pair pred succ o) [new_pair]
                 init new_pair next);
 
 
@@ -44,4 +48,4 @@ main = [io, done]
     lcopy sum done [inner_sum, _]
     drain_nat inner_sum done ([out] out_star io out);
 
--> nat zero two drain_nat;
+-> nat zero two make_pair add drain_nat out_star;

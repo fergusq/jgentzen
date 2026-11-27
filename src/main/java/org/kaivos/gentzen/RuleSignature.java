@@ -1,7 +1,6 @@
 package org.kaivos.gentzen;
 
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.kaivos.gentzen.Utils.fromEntries;
 
@@ -41,6 +40,16 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
             below.substitute(substitutions, scope, noContextVars)
         );
     }
+    public RuleSignature substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) throws ExpressionTypeUnificationException {
+        ArrayList<Sequent> newAbove = new ArrayList<>();
+        for (var a : above) {
+            newAbove.add(a.substituteTypeParams(substitutions));
+        }
+        return new RuleSignature(
+            newAbove,
+            below.substituteTypeParams(substitutions)
+        );
+    }
     public SequentUnificationResult unify(RuleSignature other, Scope scope) throws RuleSignatureUnificationException, SequentUnificationException, ExpressionTypeUnificationException {
         if (above.size() != other.above().size()) {
             throw new RuleSignatureUnificationException("rules have different number of above sequents", this, other);
@@ -66,8 +75,13 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
 		}
 
 		@Override
-		public ContextVarParameter substitute(Map<TypeVar, ExpressionType> substitutions) {
+		public ContextVarParameter substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
 			return new ContextVarParameter(var.substitute(substitutions), input);
+		}
+
+		@Override
+		public ContextVarParameter substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new ContextVarParameter(var.substituteTypeParams(substitutions), input);
 		}
     }
     public static record ContextVar(String name, int instance) implements HasTypeVars<ContextVar> {
@@ -84,7 +98,12 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
         }
 
         @Override
-        public ContextVar substitute(Map<TypeVar, ExpressionType> substitutions) {
+        public ContextVar substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
+            return this;
+        }
+
+        @Override
+        public ContextVar substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
             return this;
         }
     }
@@ -96,12 +115,17 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
 		}
 
 		@Override
-		public SequentParameter substitute(Map<TypeVar, ExpressionType> substitutions) {
+		public SequentParameter substitute(Map<TypeVar, ? extends ExpressionType> substitutions) {
 			return new SequentParameter(type.substitute(substitutions), input);
 		}
 
+		@Override
+		public SequentParameter substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new SequentParameter(type.substituteTypeParams(substitutions), input);
+		}
+
 		public void kindCheck(Scope scope) throws KindCheckException {
-		    type.kindCheck(scope);
+		    type.kindCheck(scope).expectConcrete("sequent parameter");
 		}
     }
     public static record Sequent(
@@ -157,6 +181,13 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                 newContextVars
             );
         }
+        public Sequent substituteTypeParams(Map<String, ? extends ExpressionType> substitutions) {
+            return new Sequent(
+                HasTypeVars.mapSubstituteTypeParams(numberedParams, substitutions),
+                HasTypeVars.mapSubstituteTypeParams(boundParams, substitutions),
+                HasTypeVars.listSubstituteTypeParams(contextVars, substitutions)
+            );
+        }
         public SequentUnificationResult unify(Sequent other, Scope scope) throws SequentUnificationException, ExpressionTypeUnificationException {
             var ans = new SequentUnificationResult(Map.of(), Map.of());
             for (var input : List.of(true, false)) {
@@ -176,8 +207,8 @@ public record RuleSignature(java.util.List<Sequent> above, Sequent below) implem
                     .entrySet().stream()
                     .filter(e -> e.getValue().input() == input)
                     .collect(fromEntries());
-                var thisContextVars = contextVars.stream().filter(c -> c.input() == input).collect(toList());
-                var otherContextVars = other.contextVars().stream().filter(c -> c.input() == input).collect(toList());
+                var thisContextVars = contextVars.stream().filter(c -> c.input() == input).toList();
+                var otherContextVars = other.contextVars().stream().filter(c -> c.input() == input).toList();
 
                 if (!thisNumberedParams.keySet().containsAll(otherNumberedParams.keySet())
                     || !otherNumberedParams.keySet().containsAll(thisNumberedParams.keySet())) {

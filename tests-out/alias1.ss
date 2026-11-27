@@ -1,4 +1,7 @@
-(include "lib/stdlib.ss")
-(include "lib/iolib.ss")
-;(import alias1)
+(library (alias1)
+  (export )
+  (import (rnrs) )
 
+)
+(import (alias1))
+(call/cc (lambda (c) (g/main 'iosys c)))
